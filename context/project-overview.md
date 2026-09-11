@@ -1,6 +1,6 @@
 # DevStash — Project Overview
 
-*Cleaned-up planning notes. Anything still undecided is flagged with 🚧.*
+_Cleaned-up planning notes. Anything still undecided is flagged with 🚧._
 
 ## 1. Problem / Core Idea
 
@@ -19,12 +19,12 @@ This creates context switching, lost knowledge, and inconsistent workflows. **De
 
 ## 2. Target Users
 
-| Persona | Needs |
-| --- | --- |
-| **Everyday Developer** | A fast way to grab snippets, prompts, commands, and links. |
-| **AI-first Developer** | Saves prompts, contexts, workflows, and system messages. |
-| **Content Creator / Educator** | Stores code blocks, explanations, and course notes. |
-| **Full-stack Builder** | Collects patterns, boilerplates, and API examples. |
+| Persona                        | Needs                                                      |
+| ------------------------------ | ---------------------------------------------------------- |
+| **Everyday Developer**         | A fast way to grab snippets, prompts, commands, and links. |
+| **AI-first Developer**         | Saves prompts, contexts, workflows, and system messages.   |
+| **Content Creator / Educator** | Stores code blocks, explanations, and course notes.        |
+| **Full-stack Builder**         | Collects patterns, boilerplates, and API examples.         |
 
 ## 3. Features
 
@@ -49,7 +49,7 @@ A type is one of three content shapes: **text** (snippet, note, prompt, command)
 
 - Users can create collections that hold items of any type.
 - An item can belong to multiple collections (e.g., a React snippet could live in both "React Patterns" and "Interview Prep").
-- Example collections: *React Patterns* (snippets, notes), *Context Files* (files), *Python Snippets* (snippets).
+- Example collections: _React Patterns_ (snippets, notes), _Context Files_ (files), _Python Snippets_ (snippets).
 
 ### C. Search
 
@@ -224,6 +224,7 @@ model Tag {
 Freemium model.
 
 **Free**
+
 - 50 items total
 - 3 collections
 - All system types except files/images
@@ -232,6 +233,7 @@ Freemium model.
 - No AI features
 
 **Pro — $8/month or $72/year**
+
 - Unlimited items
 - Unlimited collections
 - File & image uploads
@@ -262,19 +264,26 @@ Freemium model.
 - **Main:** a grid of color-coded collection cards, background-colored by the item type that dominates that collection. Items are displayed under their collection in color-coded cards (border color = item type color).
 - Individual items open in a quick-access drawer
 
+### Screenshots
+
+Refer to the screenshots below as a base for the dashboard UI. It does not have to be exact. Use it as a reference:
+
+- @context/screenshots/dashboard-ui-main.png/
+- @context/screenshots/dashboard-ui-drawer.png/
+
 ### Type Colors & Icons
 
-| Type | Color | Hex | Icon (Lucide) |
-| --- | --- | --- | --- |
-| Snippet | 🔵 Blue | `#3b82f6` | `Code` |
-| Prompt | 🟣 Purple | `#8b5cf6` | `Sparkles` |
-| Command | 🟠 Orange | `#f97316` | `Terminal` |
-| Note | 🟡 Yellow | `#fde047` | `StickyNote` |
-| File | ⚪ Gray | `#6b7280` | `File` |
-| Image | 🩷 Pink | `#ec4899` | `Image` |
-| Link | 🟢 Emerald | `#10b981` | `Link` |
+| Type    | Color      | Hex       | Icon (Lucide) |
+| ------- | ---------- | --------- | ------------- |
+| Snippet | 🔵 Blue    | `#3b82f6` | `Code`        |
+| Prompt  | 🟣 Purple  | `#8b5cf6` | `Sparkles`    |
+| Command | 🟠 Orange  | `#f97316` | `Terminal`    |
+| Note    | 🟡 Yellow  | `#fde047` | `StickyNote`  |
+| File    | ⚪ Gray    | `#6b7280` | `File`        |
+| Image   | 🩷 Pink    | `#ec4899` | `Image`       |
+| Link    | 🟢 Emerald | `#10b981` | `Link`        |
 
-*(Swatches above are an approximation — use the hex values as the source of truth.)*
+_(Swatches above are an approximation — use the hex values as the source of truth.)_
 
 ### Responsive
 
