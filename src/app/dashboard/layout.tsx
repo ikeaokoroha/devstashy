@@ -1,18 +1,22 @@
+import { cookies } from "next/headers";
+import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { TopBar } from "@/components/dashboard/TopBar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: LayoutProps<"/dashboard">) {
-  return (
-    <div className="flex h-screen flex-col">
-      <TopBar />
+  // Written by SidebarProvider on toggle; read here so a collapsed sidebar doesn't flash open on reload.
+  const cookieStore = await cookies();
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-64 shrink-0 border-r p-4 md:block">
-          <h2 className="text-lg font-semibold">Sidebar</h2>
-        </aside>
-        <main className="min-w-0 flex-1 overflow-y-auto p-6">{children}</main>
-      </div>
-    </div>
+  return (
+    <SidebarProvider defaultOpen={defaultOpen} className="h-svh">
+      <AppSidebar />
+      <SidebarInset className="min-w-0 overflow-hidden">
+        <TopBar />
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

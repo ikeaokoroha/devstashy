@@ -2,12 +2,13 @@ import { FolderPlus, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export function TopBar() {
   return (
     <header className="flex h-16 shrink-0 items-center gap-4 border-b px-4 md:px-6">
       <div className="flex-1">
-        <span className="text-lg font-semibold">Devstashy</span>
+        <SidebarTrigger className="-ml-1" />
       </div>
 
       <div className="relative w-full max-w-md">
