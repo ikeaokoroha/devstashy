@@ -1,24 +1,18 @@
 # Current Feature
 
-Dashboard UI Phase 3 — build out the dashboard main area (phase 3 of 3).
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- The main area to the right of the sidebar
-- Recent collections
-- Pinned items
-- 10 recent items
-- 4 stats cards at the top: number of items, collections, favorite items, and favorite collections (not in screenshot)
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Use `context/screenshots/dashboard-ui-main.png` as the visual reference.
-- Import data directly from `src/lib/mock-data.ts` until the database is implemented.
-- References: `context/project-overview.md`, `context/features/dashboard-phase-1-spec.md`, `context/features/dashboard-phase-2-spec.md`.
+<!-- Any extra notes -->
 
 ## History
 
@@ -32,3 +26,6 @@ Initialized shadcn/ui (base-nova style, Base UI) with button, input, and kbd com
 
 Dashboard UI Phase 2
 Added the dashboard sidebar with the shadcn sidebar component (collapsible off-canvas, ⌘B toggle, state persisted via cookie, always a drawer on mobile) and a toggle in the top bar. It holds the brand header, collapsible Types (colored icons, counts, links to /items/TYPE) and Collections groups (favorites plus recent non-favorites), and a user avatar area, all fed from mock data. Added item type color tokens in globals.css and an item type icon/color map in src/lib/item-types.ts.
+
+Dashboard UI Phase 3
+Built the dashboard main area with shadcn card and badge: a page header, 4 stats cards (items, collections, favorite items, favorite collections), the 6 most recently updated collections (cards bordered by their dominant item type, with type icons, linking to /collections/[id]), pinned items, and the 10 most recent items. Data comes from mock-backed queries in src/lib/dashboard-data.ts, ready to swap for Prisma. Widened the main content's side padding.
