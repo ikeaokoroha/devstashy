@@ -4,19 +4,20 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { getItemTypeStyle } from "@/lib/item-types";
-import { items, itemTypes } from "@/lib/mock-data";
+import type { ItemTypeWithCount } from "@/types/dashboard";
 import { SidebarCollapsibleGroup } from "./SidebarCollapsibleGroup";
 import { SidebarNavLink } from "./SidebarNavLink";
 
-export function SidebarTypesNav() {
+interface SidebarTypesNavProps {
+  itemTypes: ItemTypeWithCount[];
+}
+
+export function SidebarTypesNav({ itemTypes }: SidebarTypesNavProps) {
   return (
     <SidebarCollapsibleGroup label="Types">
       <SidebarMenu>
         {itemTypes.map((type) => {
           const { icon: Icon, textClass } = getItemTypeStyle(type.name);
-          const count = items.filter(
-            (item) => item.itemTypeId === type.id
-          ).length;
 
           return (
             <SidebarMenuItem key={type.id}>
@@ -25,7 +26,7 @@ export function SidebarTypesNav() {
                 <span className="capitalize">{type.name}s</span>
               </SidebarNavLink>
               <SidebarMenuBadge className="text-muted-foreground">
-                {count}
+                {type.itemCount}
               </SidebarMenuBadge>
             </SidebarMenuItem>
           );

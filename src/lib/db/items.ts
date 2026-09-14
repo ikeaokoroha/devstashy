@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { SYSTEM_ITEM_TYPE_ORDER } from "@/lib/item-types";
 import { prisma } from "@/lib/prisma";
-import type { ItemStats, ItemWithType } from "@/types/dashboard";
+import type { ItemStats, ItemTypeWithCount, ItemWithType } from "@/types/dashboard";
 
 // Only the fields the dashboard item cards render.
 const ITEM_CARD_SELECT = {
@@ -27,6 +28,28 @@ export async function getItemStats(userId: string): Promise<ItemStats> {
   ]);
 
   return { totalItems, favoriteItems };
+}
+
+// System types with the number of the user's items of each, in spec display order.
+export async function getSystemItemTypes(userId: string): Promise<ItemTypeWithCount[]> {
+  const types = await prisma.itemType.findMany({
+    where: { isSystem: true },
+    select: {
+      id: true,
+      name: true,
+      _count: { select: { items: { where: { userId } } } },
+    },
+  });
+
+  return types
+    .map(({ _count, ...type }) => ({ ...type, itemCount: _count.items }))
+    .sort((a, b) => typeOrder(a.name) - typeOrder(b.name));
+}
+
+// Unknown names sort last.
+function typeOrder(name: string): number {
+  const index = SYSTEM_ITEM_TYPE_ORDER.indexOf(name);
+  return index === -1 ? SYSTEM_ITEM_TYPE_ORDER.length : index;
 }
 
 export async function getPinnedItems(userId: string): Promise<ItemWithType[]> {

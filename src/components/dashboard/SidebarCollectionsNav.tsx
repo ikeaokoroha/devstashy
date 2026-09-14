@@ -1,18 +1,18 @@
-import { Folder, Star } from "lucide-react";
+import { ArrowRight, Folder, Star } from "lucide-react";
 import {
   SidebarMenu,
   SidebarMenuBadge,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { collections, items, type Collection } from "@/lib/mock-data";
+import { getItemTypeStyle } from "@/lib/item-types";
+import { cn } from "@/lib/utils";
+import type { SidebarCollection, SidebarCollections } from "@/types/dashboard";
 import { SidebarCollapsibleGroup } from "./SidebarCollapsibleGroup";
 import { SidebarNavLink } from "./SidebarNavLink";
 
-const RECENT_COLLECTIONS_LIMIT = 5;
-
 interface CollectionListProps {
   heading: string;
-  collections: Collection[];
+  collections: SidebarCollection[];
 }
 
 function CollectionList({ heading, collections }: CollectionListProps) {
@@ -30,17 +30,8 @@ function CollectionList({ heading, collections }: CollectionListProps) {
               <Folder className="text-muted-foreground" />
               <span>{collection.name}</span>
             </SidebarNavLink>
-            <SidebarMenuBadge className="text-muted-foreground">
-              {collection.isFavorite ? (
-                <Star
-                  aria-label="Favorite"
-                  className="size-3.5 fill-yellow-400 text-yellow-400"
-                />
-              ) : (
-                items.filter((item) =>
-                  item.collectionIds.includes(collection.id)
-                ).length
-              )}
+            <SidebarMenuBadge>
+              <CollectionMarker collection={collection} />
             </SidebarMenuBadge>
           </SidebarMenuItem>
         ))}
@@ -49,17 +40,43 @@ function CollectionList({ heading, collections }: CollectionListProps) {
   );
 }
 
-export function SidebarCollectionsNav() {
-  const favorites = collections.filter((collection) => collection.isFavorite);
-  const recent = collections
-    .filter((collection) => !collection.isFavorite)
-    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-    .slice(0, RECENT_COLLECTIONS_LIMIT);
+// Favorites get a star; the rest get a dot colored by their most-used item type.
+function CollectionMarker({ collection }: { collection: SidebarCollection }) {
+  if (collection.isFavorite) {
+    return (
+      <Star
+        aria-label="Favorite"
+        className="size-3.5 fill-yellow-400 text-yellow-400"
+      />
+    );
+  }
 
+  const { dotClass } = getItemTypeStyle(collection.dominantType?.name ?? "");
+  return (
+    <span
+      aria-label={collection.dominantType?.name ?? "Empty collection"}
+      className={cn("size-2 rounded-full", dotClass)}
+    />
+  );
+}
+
+interface SidebarCollectionsNavProps {
+  collections: SidebarCollections;
+}
+
+export function SidebarCollectionsNav({ collections }: SidebarCollectionsNavProps) {
   return (
     <SidebarCollapsibleGroup label="Collections">
-      <CollectionList heading="Favorites" collections={favorites} />
-      <CollectionList heading="Recent" collections={recent} />
+      <CollectionList heading="Favorites" collections={collections.favorites} />
+      <CollectionList heading="Recent" collections={collections.recent} />
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarNavLink href="/collections">
+            <span className="text-muted-foreground">View all collections</span>
+            <ArrowRight className="ml-auto text-muted-foreground" />
+          </SidebarNavLink>
+        </SidebarMenuItem>
+      </SidebarMenu>
     </SidebarCollapsibleGroup>
   );
 }

@@ -1,9 +1,29 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type {
   CollectionItemType,
   CollectionStats,
   CollectionSummary,
+  SidebarCollection,
+  SidebarCollections,
 } from "@/types/dashboard";
+
+const COLLECTION_ITEM_TYPES_SELECT = {
+  select: {
+    item: { select: { itemType: { select: { id: true, name: true } } } },
+  },
+} satisfies Prisma.Collection$itemsArgs;
+
+const SIDEBAR_COLLECTION_SELECT = {
+  id: true,
+  name: true,
+  isFavorite: true,
+  items: COLLECTION_ITEM_TYPES_SELECT,
+} satisfies Prisma.CollectionSelect;
+
+type SidebarCollectionRow = Prisma.CollectionGetPayload<{
+  select: typeof SIDEBAR_COLLECTION_SELECT;
+}>;
 
 export async function getCollectionStats(userId: string): Promise<CollectionStats> {
   const [totalCollections, favoriteCollections] = await Promise.all([
@@ -27,11 +47,7 @@ export async function getRecentCollections(
       name: true,
       description: true,
       isFavorite: true,
-      items: {
-        select: {
-          item: { select: { itemType: { select: { id: true, name: true } } } },
-        },
-      },
+      items: COLLECTION_ITEM_TYPES_SELECT,
     },
   });
 
@@ -40,6 +56,36 @@ export async function getRecentCollections(
     itemCount: items.length,
     itemTypes: rankItemTypes(items.map(({ item }) => item.itemType)),
   }));
+}
+
+// All favorite collections plus the most recently updated non-favorites.
+export async function getSidebarCollections(
+  userId: string,
+  recentLimit: number
+): Promise<SidebarCollections> {
+  const [favorites, recent] = await Promise.all([
+    prisma.collection.findMany({
+      where: { userId, isFavorite: true },
+      orderBy: { updatedAt: "desc" },
+      select: SIDEBAR_COLLECTION_SELECT,
+    }),
+    prisma.collection.findMany({
+      where: { userId, isFavorite: false },
+      orderBy: { updatedAt: "desc" },
+      take: recentLimit,
+      select: SIDEBAR_COLLECTION_SELECT,
+    }),
+  ]);
+
+  return {
+    favorites: favorites.map(toSidebarCollection),
+    recent: recent.map(toSidebarCollection),
+  };
+}
+
+function toSidebarCollection({ items, ...collection }: SidebarCollectionRow): SidebarCollection {
+  const [dominantType] = rankItemTypes(items.map(({ item }) => item.itemType));
+  return { ...collection, dominantType: dominantType ?? null };
 }
 
 // Distinct types ordered by how many items use them (ties broken by name), so the

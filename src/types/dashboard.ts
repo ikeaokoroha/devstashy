@@ -25,6 +25,25 @@ export interface CollectionSummary {
   itemTypes: CollectionItemType[];
 }
 
+export interface ItemTypeWithCount {
+  id: string;
+  name: string;
+  itemCount: number;
+}
+
+export interface SidebarCollection {
+  id: string;
+  name: string;
+  isFavorite: boolean;
+  // Most-used item type in the collection; null when it has no items.
+  dominantType: CollectionItemType | null;
+}
+
+export interface SidebarCollections {
+  favorites: SidebarCollection[];
+  recent: SidebarCollection[];
+}
+
 export interface ItemWithType {
   id: string;
   title: string;

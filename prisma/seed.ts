@@ -43,6 +43,7 @@ interface SeedItem {
 interface SeedCollection {
   name: string;
   description: string;
+  isFavorite?: boolean;
   items: SeedItem[];
 }
 
@@ -50,6 +51,7 @@ const COLLECTIONS: SeedCollection[] = [
   {
     name: "React Patterns",
     description: "Reusable React patterns and hooks",
+    isFavorite: true,
     items: [
       {
         type: "snippet",
@@ -157,6 +159,7 @@ export function formatRelativeTime(date: Date, locale = "en") {
   {
     name: "AI Workflows",
     description: "AI prompts and workflow automations",
+    isFavorite: true,
     items: [
       {
         type: "prompt",
@@ -383,8 +386,10 @@ async function seedCollections(userId: string, typeIds: Map<SystemTypeName, stri
   await prisma.item.deleteMany({ where: { userId } });
   await prisma.collection.deleteMany({ where: { userId } });
 
-  for (const { name, description, items } of COLLECTIONS) {
-    const collection = await prisma.collection.create({ data: { name, description, userId } });
+  for (const { name, description, isFavorite = false, items } of COLLECTIONS) {
+    const collection = await prisma.collection.create({
+      data: { name, description, isFavorite, userId },
+    });
 
     for (const { type, ...item } of items) {
       const itemTypeId = typeIds.get(type);

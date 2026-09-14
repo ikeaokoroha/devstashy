@@ -6,11 +6,17 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import type { ItemTypeWithCount, SidebarCollections } from "@/types/dashboard";
 import { SidebarCollectionsNav } from "./SidebarCollectionsNav";
 import { SidebarTypesNav } from "./SidebarTypesNav";
 import { SidebarUser } from "./SidebarUser";
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  itemTypes: ItemTypeWithCount[];
+  collections: SidebarCollections;
+}
+
+export function AppSidebar({ itemTypes, collections }: AppSidebarProps) {
   return (
     <Sidebar>
       <SidebarHeader className="h-16 flex-row items-center px-4">
@@ -23,9 +29,9 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarTypesNav />
+        <SidebarTypesNav itemTypes={itemTypes} />
         <SidebarSeparator />
-        <SidebarCollectionsNav />
+        <SidebarCollectionsNav collections={collections} />
       </SidebarContent>
 
       <SidebarUser />
