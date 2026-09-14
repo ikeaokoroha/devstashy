@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { getItemTypeStyle } from "@/lib/item-types";
 import type { ItemWithType } from "@/types/dashboard";
 
-// Mock dates are UTC midnight; formatting in UTC keeps them from shifting a day.
+// Format in UTC so the rendered date doesn't depend on the server's time zone.
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",

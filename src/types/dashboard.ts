@@ -1,5 +1,3 @@
-import type { Item, ItemType } from "@/lib/mock-data";
-
 export interface ItemStats {
   totalItems: number;
   favoriteItems: number;
@@ -27,6 +25,13 @@ export interface CollectionSummary {
   itemTypes: CollectionItemType[];
 }
 
-export interface ItemWithType extends Item {
-  itemType: ItemType;
+export interface ItemWithType {
+  id: string;
+  title: string;
+  description: string | null;
+  isFavorite: boolean;
+  isPinned: boolean;
+  updatedAt: Date;
+  tags: string[];
+  itemType: CollectionItemType;
 }
