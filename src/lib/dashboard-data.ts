@@ -1,18 +1,7 @@
-// Mock-backed dashboard queries. Replace with Prisma queries once the database is in place.
+// Mock-backed item queries. Replace with Prisma queries once items are wired to the database.
 
-import {
-  collections,
-  items,
-  itemTypes,
-  type Collection,
-  type Item,
-  type ItemType,
-} from "@/lib/mock-data";
-import type {
-  CollectionSummary,
-  DashboardStats,
-  ItemWithType,
-} from "@/types/dashboard";
+import { items, itemTypes, type Item, type ItemType } from "@/lib/mock-data";
+import type { ItemStats, ItemWithType } from "@/types/dashboard";
 
 const itemTypesById = new Map(itemTypes.map((type) => [type.id, type]));
 
@@ -30,37 +19,11 @@ function withItemType(item: Item): ItemWithType {
   return { ...item, itemType: getItemType(item.itemTypeId) };
 }
 
-function summarizeCollection(collection: Collection): CollectionSummary {
-  const collectionItems = items.filter((item) =>
-    item.collectionIds.includes(collection.id)
-  );
-
-  const typeCounts = new Map<string, number>();
-  for (const item of collectionItems) {
-    typeCounts.set(item.itemTypeId, (typeCounts.get(item.itemTypeId) ?? 0) + 1);
-  }
-
-  const types = [...typeCounts.entries()]
-    .sort(([, a], [, b]) => b - a)
-    .map(([typeId]) => getItemType(typeId));
-
-  return { ...collection, itemCount: collectionItems.length, itemTypes: types };
-}
-
-export function getDashboardStats(): DashboardStats {
+export function getItemStats(): ItemStats {
   return {
     totalItems: items.length,
-    totalCollections: collections.length,
     favoriteItems: items.filter((item) => item.isFavorite).length,
-    favoriteCollections: collections.filter((c) => c.isFavorite).length,
   };
-}
-
-export function getRecentCollections(limit: number): CollectionSummary[] {
-  return [...collections]
-    .sort(byMostRecent)
-    .slice(0, limit)
-    .map(summarizeCollection);
 }
 
 export function getPinnedItems(): ItemWithType[] {
