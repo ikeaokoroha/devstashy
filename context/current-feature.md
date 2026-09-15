@@ -1,23 +1,18 @@
-# Current Feature: Add Pro Badge to Sidebar
+# Current Feature
 
-Add a PRO badge to the File and Image types in the dashboard sidebar.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Show a PRO badge next to the File and Image types in the sidebar Types group
-- Use the shadcn/ui Badge component
-- Keep the badge clean and subtle
-- Show the label as uppercase "PRO"
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Spec: context/features/add-pro-badge-sidebar.md
-- Per the project overview, file and image are the Pro-only system types. The badge is display only: during development every user still gets full access.
-- The shadcn badge is already installed (src/components/ui/badge.tsx). The Types list is rendered in src/components/dashboard/SidebarTypesNav.tsx.
+<!-- Any extra notes -->
 
 ## History
 
@@ -49,3 +44,6 @@ Replaced the mock item stats, pinned items, and recent items in the dashboard ma
 
 Stats & Sidebar
 Replaced the sidebar's mock types and collections with real data from Neon via Prisma. Added getSystemItemTypes to src/lib/db/items.ts (system types with the user's item count per type, in one query using a filtered relation count, sorted in spec order via SYSTEM_ITEM_TYPE_ORDER) and getSidebarCollections to src/lib/db/collections.ts (all favorites plus the 5 most recent non-favorites, each with its dominant item type from the shared ranking). The dashboard layout fetches both in parallel and passes them down through AppSidebar; getCurrentUserId is now wrapped in React cache so the layout and page share one lookup per request. Types link to /items/[type]s with their colored icons and counts; favorite collections keep the star, recent ones show a dot colored by their dominant type (via a new dotClass in item-types.ts, muted for empty collections), and a "View all collections" link goes to /collections. The seed now marks React Patterns and AI Workflows as favorites (applied directly to the dev database to preserve the pinned items). The sidebar user area still uses mock-data.ts until auth lands.
+
+Add Pro Badge to Sidebar
+Added a subtle PRO badge next to the File and Image types in the sidebar's Types group, using the shadcn Badge (outline variant, muted 10px semibold text, 16px tall). The Pro-only types are listed once as PRO_ITEM_TYPES in src/lib/item-types.ts and checked in SidebarTypesNav. The badge is display only; Pro gating is not enforced yet.
