@@ -28,6 +28,9 @@ export const SYSTEM_ITEM_TYPE_ORDER = [
   "link",
 ];
 
+// System types that require a Pro plan.
+export const PRO_ITEM_TYPES = ["file", "image"];
+
 const DEFAULT_ITEM_TYPE_STYLE: ItemTypeStyle = {
   icon: File,
   textClass: "text-muted-foreground",
