@@ -52,10 +52,14 @@ function typeOrder(name: string): number {
   return index === -1 ? SYSTEM_ITEM_TYPE_ORDER.length : index;
 }
 
-export async function getPinnedItems(userId: string): Promise<ItemWithType[]> {
+export async function getPinnedItems(
+  userId: string,
+  limit: number
+): Promise<ItemWithType[]> {
   const items = await prisma.item.findMany({
     where: { userId, isPinned: true },
     orderBy: { updatedAt: "desc" },
+    take: limit,
     select: ITEM_CARD_SELECT,
   });
 

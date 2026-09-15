@@ -113,6 +113,7 @@ model Item {
   collections ItemCollection[]
 
   @@index([userId, updatedAt])
+  @@index([userId, isPinned, updatedAt])
   @@index([userId, itemTypeId])
   @@index([itemTypeId])
 }

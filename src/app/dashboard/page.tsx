@@ -8,6 +8,7 @@ import { getCurrentUserId } from "@/lib/db/users";
 
 const RECENT_COLLECTIONS_LIMIT = 6;
 const RECENT_ITEMS_LIMIT = 10;
+const PINNED_ITEMS_LIMIT = 10;
 
 export default async function DashboardPage() {
   const userId = await getCurrentUserId();
@@ -16,7 +17,7 @@ export default async function DashboardPage() {
       getItemStats(userId),
       getCollectionStats(userId),
       getRecentCollections(userId, RECENT_COLLECTIONS_LIMIT),
-      getPinnedItems(userId),
+      getPinnedItems(userId, PINNED_ITEMS_LIMIT),
       getRecentItems(userId, RECENT_ITEMS_LIMIT),
     ]);
 

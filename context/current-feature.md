@@ -1,18 +1,29 @@
 # Current Feature
 
-<!-- Feature name and short description -->
+Code Scan Quick Wins
+Low-risk fixes from the code-scanner audit: cap the unbounded dashboard queries, index pinned items, count collection items with Prisma's `_count`, and make the seed reset atomic. The one schema change ships as a Prisma migration; no raw SQL.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- **Limit pinned items**: add a `limit` parameter to `getPinnedItems` in `src/lib/db/items.ts` (applied with `take`), and pass a `PINNED_ITEMS_LIMIT` constant from `src/app/dashboard/page.tsx`, like `RECENT_ITEMS_LIMIT`
+- **Index pinned items**: add `@@index([userId, isPinned, updatedAt])` to `Item` in `prisma/schema.prisma` and create it with `prisma migrate dev` (applied to the dev branch now; prod gets it with `prisma migrate deploy` so both Neon branches stay in sync)
+- **Limit sidebar favorites**: add a `favoritesLimit` parameter to `getSidebarCollections` in `src/lib/db/collections.ts` (applied with `take` on the favorites query), and pass a `SIDEBAR_FAVORITE_COLLECTIONS_LIMIT` constant from `src/app/dashboard/layout.tsx`, like `SIDEBAR_RECENT_COLLECTIONS_LIMIT`
+- **Count collection items with `_count`**: in `getRecentCollections`, select `_count: { select: { items: true } }` and use it for `itemCount` instead of `items.length`
+- **Atomic seed reset**: in `prisma/seed.ts`, wrap the delete-and-recreate in `seedCollections` in `prisma.$transaction(async (tx) => { ... })`, using `tx` for every call inside
 
 ## Notes
 
-<!-- Any extra notes -->
+- Use Prisma Client APIs only (`take`, `_count`, `$transaction`); no `$queryRaw` or raw SQL.
+- Every schema change goes through a Prisma migration so the dev and prod Neon branches stay in sync. Run `prisma migrate status` against both before committing.
+- Out of scope for now: the seed environment guard, `mock-data.ts` cleanup, security headers, and the `DATABASE_URL` check. The unique constraint on system type names is also out: it needs a partial unique index, which Prisma schema can't express without raw SQL in the migration.
+- `_count` only replaces the count. The item rows are still loaded to rank types for the border color. Reworking the type ranking isn't a quick win.
+- Suggested limit values: `PINNED_ITEMS_LIMIT = 10` (matches recent items) and `SIDEBAR_FAVORITE_COLLECTIONS_LIMIT = 10`. Anything past the cap stays reachable from "View all collections".
+- The seed transaction makes 23 sequential inserts inside one interactive transaction. If the Neon round-trips exceed Prisma's 5s default, raise the `timeout` option.
+- No visible UI change with the current seed data: the demo user has 2 pinned items (after manual pinning) and 2 favorite collections, both under the caps.
 
 ## History
 

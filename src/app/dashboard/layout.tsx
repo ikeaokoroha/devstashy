@@ -6,6 +6,7 @@ import { getSidebarCollections } from "@/lib/db/collections";
 import { getSystemItemTypes } from "@/lib/db/items";
 import { getCurrentUserId } from "@/lib/db/users";
 
+const SIDEBAR_FAVORITE_COLLECTIONS_LIMIT = 10;
 const SIDEBAR_RECENT_COLLECTIONS_LIMIT = 5;
 
 export default async function DashboardLayout({
@@ -18,7 +19,11 @@ export default async function DashboardLayout({
   const userId = await getCurrentUserId();
   const [itemTypes, collections] = await Promise.all([
     getSystemItemTypes(userId),
-    getSidebarCollections(userId, SIDEBAR_RECENT_COLLECTIONS_LIMIT),
+    getSidebarCollections(
+      userId,
+      SIDEBAR_FAVORITE_COLLECTIONS_LIMIT,
+      SIDEBAR_RECENT_COLLECTIONS_LIMIT
+    ),
   ]);
 
   return (

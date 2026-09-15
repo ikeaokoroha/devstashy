@@ -48,25 +48,28 @@ export async function getRecentCollections(
       description: true,
       isFavorite: true,
       items: COLLECTION_ITEM_TYPES_SELECT,
+      _count: { select: { items: true } },
     },
   });
 
-  return collections.map(({ items, ...collection }) => ({
+  return collections.map(({ items, _count, ...collection }) => ({
     ...collection,
-    itemCount: items.length,
+    itemCount: _count.items,
     itemTypes: rankItemTypes(items.map(({ item }) => item.itemType)),
   }));
 }
 
-// All favorite collections plus the most recently updated non-favorites.
+// The most recently updated favorite and non-favorite collections, capped separately.
 export async function getSidebarCollections(
   userId: string,
+  favoritesLimit: number,
   recentLimit: number
 ): Promise<SidebarCollections> {
   const [favorites, recent] = await Promise.all([
     prisma.collection.findMany({
       where: { userId, isFavorite: true },
       orderBy: { updatedAt: "desc" },
+      take: favoritesLimit,
       select: SIDEBAR_COLLECTION_SELECT,
     }),
     prisma.collection.findMany({

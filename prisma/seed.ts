@@ -381,31 +381,40 @@ function contentTypeFor(item: Pick<SeedItem, "url">): ItemContentType {
   return item.url ? ItemContentType.URL : ItemContentType.TEXT;
 }
 
+// Neon round-trips add up across the sequential inserts; Prisma's 5s default is too tight.
+const SEED_TRANSACTION_TIMEOUT_MS = 60_000;
+
 async function seedCollections(userId: string, typeIds: Map<SystemTypeName, string>) {
-  // Items cascade-delete their collection links, so this fully resets the demo data.
-  await prisma.item.deleteMany({ where: { userId } });
-  await prisma.collection.deleteMany({ where: { userId } });
+  // One transaction, so a failed insert rolls back to the previous demo data.
+  await prisma.$transaction(
+    async (tx) => {
+      // Items cascade-delete their collection links, so this fully resets the demo data.
+      await tx.item.deleteMany({ where: { userId } });
+      await tx.collection.deleteMany({ where: { userId } });
 
-  for (const { name, description, isFavorite = false, items } of COLLECTIONS) {
-    const collection = await prisma.collection.create({
-      data: { name, description, isFavorite, userId },
-    });
+      for (const { name, description, isFavorite = false, items } of COLLECTIONS) {
+        const collection = await tx.collection.create({
+          data: { name, description, isFavorite, userId },
+        });
 
-    for (const { type, ...item } of items) {
-      const itemTypeId = typeIds.get(type);
-      if (!itemTypeId) throw new Error(`Missing system item type: ${type}`);
+        for (const { type, ...item } of items) {
+          const itemTypeId = typeIds.get(type);
+          if (!itemTypeId) throw new Error(`Missing system item type: ${type}`);
 
-      await prisma.item.create({
-        data: {
-          ...item,
-          contentType: contentTypeFor(item),
-          userId,
-          itemTypeId,
-          collections: { create: { collectionId: collection.id } },
-        },
-      });
-    }
-  }
+          await tx.item.create({
+            data: {
+              ...item,
+              contentType: contentTypeFor(item),
+              userId,
+              itemTypeId,
+              collections: { create: { collectionId: collection.id } },
+            },
+          });
+        }
+      }
+    },
+    { timeout: SEED_TRANSACTION_TIMEOUT_MS }
+  );
 }
 
 async function main() {
