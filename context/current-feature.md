@@ -1,43 +1,18 @@
-# Current Feature: Auth Phase 3 — Sign In, Register & Sign Out UI
+# Current Feature
 
-Replace the NextAuth default pages with custom sign-in and register pages, and show the signed-in user's avatar, name, and a sign-out menu at the bottom of the sidebar.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- **Sign in page (`/sign-in`)**
-  - Email and password fields
-  - "Sign in with GitHub" button
-  - Link to the register page
-  - Form validation and error display
-- **Register page (`/register`)**
-  - Name, email, password, and confirm password fields
-  - Validation (passwords match, email format)
-  - Submits to `/api/auth/register`
-  - Redirects to sign-in on success
-- **Bottom of sidebar**
-  - User avatar (GitHub image, or initials as a fallback)
-  - User name
-  - Dropdown (opening upward) on avatar click with a "Sign out" link
-  - Clicking the icon goes to `/profile`
+<!-- Goals and requirements -->
 
 ## Notes
 
-- **Avatar logic:** use the user's `image` if set (from GitHub); otherwise generate initials from the name (e.g., "Brad Traversy" → "BT").
-- **Reusable avatar component:** one component that handles both the image and initials cases.
-- The sidebar user area currently uses mock-data.ts; this replaces it with the session user.
-- Existing pieces to build on: zod schemas in src/lib/auth-validation.ts, the register API at src/app/api/auth/register/route.ts, and src/proxy.ts (which currently redirects to /api/auth/signin).
-- **Testing (per spec):**
-  1. `/sign-in` renders the custom page
-  2. GitHub sign-in works
-  3. Email/password sign-in works
-  4. Avatar shows (GitHub image or initials)
-  5. Clicking the avatar opens the dropdown
-  6. "Sign out" logs out and redirects
-  7. `/register` creates an account and redirects to sign-in
+<!-- Any extra notes -->
 
 ## History
 
@@ -81,3 +56,6 @@ Added NextAuth v5 (next-auth 5.0.0-beta.32) with @auth/prisma-adapter 2.11.3 and
 
 Auth Phase 2 — Email/Password Credentials
 Added email/password sign-in alongside GitHub, plus a registration API. src/auth.config.ts registers a Credentials provider placeholder (email and password fields via CREDENTIALS_FIELDS, authorize returning null) so it stays edge-safe, and src/auth.ts swaps it for the real authorize, which looks the user up by email and checks the password with bcrypt (users without a password, e.g. GitHub-only, are rejected). POST /api/auth/register (src/app/api/auth/register/route.ts) validates name, email, password, and confirmPassword with zod (added as a dependency; schemas in src/lib/auth-validation.ts, emails trimmed and lowercased, passwords 8–72 characters and matching), returns 409 for a taken email (including a P2002 race), hashes with 12 bcrypt rounds, and responds with `{ success, data, error }` (201 on success). No migration was needed since User.password already existed. Known gap: GitHub-created users keep their email's original case, so the same address in a different case can register a second account.
+
+Auth Phase 3 — Sign In, Register & Sign Out UI
+Replaced NextAuth's default pages with custom /sign-in and /register pages in a centered (auth) route group layout. src/auth.config.ts exports SIGN_IN_PATH and sets pages.signIn to it, and src/proxy.ts now redirects signed-out visitors there. Sign-in uses server actions in src/actions/auth.ts: signInWithCredentials (useActionState, validated with signInSchema, CredentialsSignin mapped to "Invalid email or password", the email echoed back so React's form reset doesn't clear it) and signInWithGitHub, both passing the callbackUrl through; the page also shows OAuth errors Auth.js redirects back with (?error=, e.g. OAuthAccountNotLinked) and a success banner after registering. RegisterForm validates with the shared registerSchema on the client (per-field errors via z.flattenError), posts to /api/auth/register, shows server errors like a taken email, and redirects to /sign-in?registered=1. Shared FormField and FormMessage components live in src/components/auth, and an ActionResult type in src/types/actions.ts. The sidebar footer now shows the session user (the dashboard layout reads auth() and passes name, email, and image through AppSidebar) with a reusable UserAvatar in src/components/shared (image, or initials from the first and last words of the name, falling back to the email's first letter) and an upward dropdown with Profile (links to /profile, not built yet) and Sign out (signOutUser, redirects to /sign-in). Added the shadcn dropdown-menu and label components. Dashboard data is still scoped to the demo user via getCurrentUserId, and mock-data.ts is no longer imported but kept for a later cleanup.
