@@ -1,41 +1,18 @@
-# Current Feature: Auth Phase 1 — NextAuth + GitHub Provider
+# Current Feature
 
-Set up NextAuth v5 with the Prisma adapter and GitHub OAuth, using NextAuth's default pages for testing.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Install NextAuth v5 (`next-auth@beta`) and `@auth/prisma-adapter`
-- Set up the split auth config pattern for edge compatibility
-- Add the GitHub OAuth provider
-- Protect `/dashboard/*` routes using the Next.js 16 proxy
-- Redirect unauthenticated users to sign-in
-- Files to create:
-  - `src/auth.config.ts` — edge-compatible config (providers only, no adapter)
-  - `src/auth.ts` — full config with Prisma adapter and JWT strategy
-  - `src/app/api/auth/[...nextauth]/route.ts` — export handlers from auth.ts
-  - `src/proxy.ts` — route protection with redirect logic
-  - `src/types/next-auth.d.ts` — extend the Session type with `user.id`
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Use Context7 to verify the newest config and conventions.
-- Use `next-auth@beta` (not `@latest`, which installs v4).
-- Proxy file must be at `src/proxy.ts` (same level as `app/`).
-- Use a named export: `export const proxy = auth(...)`, not a default export.
-- Use `session: { strategy: 'jwt' }` with the split config pattern.
-- Don't set a custom `pages.signIn` — use NextAuth's default page.
-- Environment variables: `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`.
-- Testing:
-  1. Go to `/dashboard` — should redirect to sign-in
-  2. Click "Sign in with GitHub"
-  3. Verify redirect back to `/dashboard` after auth
-- References:
-  - Edge compatibility: https://authjs.dev/getting-started/installation#edge-compatibility
-  - Prisma adapter: https://authjs.dev/getting-started/adapters/prisma
+<!-- Any extra notes -->
 
 ## History
 
@@ -73,3 +50,6 @@ Added a subtle PRO badge next to the File and Image types in the sidebar's Types
 
 Code Scan Quick Wins
 Applied low-risk fixes from the code-scanner audit using Prisma APIs only. Capped the unbounded dashboard queries: getPinnedItems takes a limit (PINNED_ITEMS_LIMIT = 10 in the dashboard page) and getSidebarCollections caps favorites (SIDEBAR_FAVORITE_COLLECTIONS_LIMIT = 10 in the dashboard layout). getRecentCollections now takes itemCount from _count, though item rows are still loaded to rank types. Added an (userId, isPinned, updatedAt) index on Item through the add_pinned_items_index migration, applied to the dev branch; prod gets it from Vercel's `prisma migrate deploy && next build` build command. The seed's delete-and-recreate of the demo user's collections and items now runs in one transaction with a 60s timeout, so a failed insert rolls back instead of leaving partial data. Deferred: the seed environment guard, mock-data.ts cleanup, security headers, the DATABASE_URL check, and a unique constraint on system type names.
+
+Auth Phase 1 — NextAuth + GitHub Provider
+Added NextAuth v5 (next-auth 5.0.0-beta.32) with @auth/prisma-adapter 2.11.3 and GitHub OAuth, using NextAuth's default sign-in page. Split config for edge compatibility: src/auth.config.ts holds the GitHub provider and a session callback that copies token.sub into session.user.id, and src/auth.ts adds the Prisma adapter (the existing Neon client) with the JWT session strategy and exports handlers, auth, signIn, and signOut, served by src/app/api/auth/[...nextauth]/route.ts. src/proxy.ts builds its own instance from the adapter-free config and redirects unauthenticated requests to /dashboard/:path* to /api/auth/signin with a callbackUrl back to the original page. src/types/next-auth.d.ts types session.user.id. getCurrentUserId still returns the demo user; wiring the dashboard to the signed-in user is left for a later phase.
