@@ -1,42 +1,18 @@
-# Current Feature: Auth Phase 2 — Email/Password Credentials
+# Current Feature
 
-Add a Credentials provider for email/password sign-in, plus a registration API route.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Hash passwords with bcryptjs (already installed)
-- Add a password field to the User model via migration, if not already there
-- Add a Credentials provider placeholder to `src/auth.config.ts` (`authorize: () => null`)
-- Override the Credentials provider in `src/auth.ts` with real bcrypt validation
-- Add `POST /api/auth/register`:
-  - Accepts name, email, password, confirmPassword
-  - Validates that the passwords match
-  - Rejects emails that already have an account
-  - Hashes the password with bcryptjs and creates the user
-  - Returns a success/error response
-- GitHub OAuth keeps working
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Split pattern: auth.config.ts stays edge-safe (no bcrypt/Prisma), so it only holds the placeholder; auth.ts replaces it with the real `authorize`.
-- The User model already has `password String?` (hashed; null for OAuth-only users) from the init migration, so no migration should be needed.
-- Coding standards say to validate inputs with Zod, but zod isn't installed yet.
-- Testing:
-  1. Register via curl:
-     ```bash
-     curl -X POST http://localhost:3000/api/auth/register \
-       -H "Content-Type: application/json" \
-       -d '{"name":"Test","email":"test@test.com","password":"password123","confirmPassword":"password123"}'
-     ```
-  2. Go to `/api/auth/signin`
-  3. Sign in with email/password
-  4. Verify the redirect to `/dashboard`
-  5. Verify GitHub OAuth still works
-- Reference: https://authjs.dev/getting-started/authentication/credentials
+<!-- Any extra notes -->
 
 ## History
 
@@ -77,3 +53,6 @@ Applied low-risk fixes from the code-scanner audit using Prisma APIs only. Cappe
 
 Auth Phase 1 — NextAuth + GitHub Provider
 Added NextAuth v5 (next-auth 5.0.0-beta.32) with @auth/prisma-adapter 2.11.3 and GitHub OAuth, using NextAuth's default sign-in page. Split config for edge compatibility: src/auth.config.ts holds the GitHub provider and a session callback that copies token.sub into session.user.id, and src/auth.ts adds the Prisma adapter (the existing Neon client) with the JWT session strategy and exports handlers, auth, signIn, and signOut, served by src/app/api/auth/[...nextauth]/route.ts. src/proxy.ts builds its own instance from the adapter-free config and redirects unauthenticated requests to /dashboard/:path* to /api/auth/signin with a callbackUrl back to the original page. src/types/next-auth.d.ts types session.user.id. getCurrentUserId still returns the demo user; wiring the dashboard to the signed-in user is left for a later phase.
+
+Auth Phase 2 — Email/Password Credentials
+Added email/password sign-in alongside GitHub, plus a registration API. src/auth.config.ts registers a Credentials provider placeholder (email and password fields via CREDENTIALS_FIELDS, authorize returning null) so it stays edge-safe, and src/auth.ts swaps it for the real authorize, which looks the user up by email and checks the password with bcrypt (users without a password, e.g. GitHub-only, are rejected). POST /api/auth/register (src/app/api/auth/register/route.ts) validates name, email, password, and confirmPassword with zod (added as a dependency; schemas in src/lib/auth-validation.ts, emails trimmed and lowercased, passwords 8–72 characters and matching), returns 409 for a taken email (including a P2002 race), hashes with 12 bcrypt rounds, and responds with `{ success, data, error }` (201 on success). No migration was needed since User.password already existed. Known gap: GitHub-created users keep their email's original case, so the same address in a different case can register a second account.
