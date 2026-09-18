@@ -51,3 +51,18 @@ is in `01-app/02-guides/upgrading/version-16.md`.
   will fail the build unless `--webpack` is passed.
 - **`next/image`**: local images with query strings are no longer allowed, and
   `minimumCacheTTL`, `imageSizes`, and `qualities` have new defaults.
+
+## Neon MCP
+
+Whenever you use the Neon MCP server, target the devstashy project's development branch unless I say otherwise:
+
+- **Project:** `devstashy` (`project_id: hidden-brook-70407458`)
+- **Branch:** `development` (`branch_id: br-purple-dawn-a5rgqwvi`)
+- **Production branch:** `production` (`br-fancy-paper-a52tk5cu`). **Never read from or write to it unless I explicitly ask for production in that request.**
+
+Rules:
+
+- Always pass `branch_id: br-purple-dawn-a5rgqwvi` explicitly on every branch-scoped call (`run_sql`, `run_sql_transaction`, `get_database_tables`, `describe_table_schema`, `explain_sql_statement`, `get_connection_string`, etc.). Never leave `branch_id` out: the default branch is **production**, so a call without it hits prod.
+- Permission to use production covers only the request where I gave it. Go back to development afterward.
+- Don't change the schema through the MCP (no DDL, and no `prepare_database_migration` or `complete_database_migration`). Schema changes go through `prisma migrate dev` only.
+- Ask before running any destructive SQL or MCP action (`DELETE`, `UPDATE`, `TRUNCATE`, `DROP`, `reset_from_parent`, `delete_branch`, `restore_snapshot`), even on development.
