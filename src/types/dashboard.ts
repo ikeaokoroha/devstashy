@@ -54,3 +54,9 @@ export interface ItemWithType {
   tags: string[];
   itemType: CollectionItemType;
 }
+
+export interface SidebarUserInfo {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+}

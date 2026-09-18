@@ -1,37 +1,49 @@
-import { Settings } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { SidebarFooter } from "@/components/ui/sidebar";
-import { currentUser } from "@/lib/mock-data";
+"use client";
 
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
+import Link from "next/link";
+import { ChevronsUpDown, LogOut, User } from "lucide-react";
+import { signOutUser } from "@/actions/auth";
+import { UserAvatar } from "@/components/shared/UserAvatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { SidebarFooter } from "@/components/ui/sidebar";
+import type { SidebarUserInfo } from "@/types/dashboard";
+
+interface SidebarUserProps {
+  user: SidebarUserInfo;
 }
 
-export function SidebarUser() {
+export function SidebarUser({ user }: SidebarUserProps) {
   return (
     <SidebarFooter className="border-t border-sidebar-border">
-      <div className="flex items-center gap-3 px-2 py-1.5">
-        <Avatar size="lg">
-          {currentUser.image && (
-            <AvatarImage src={currentUser.image} alt={currentUser.name} />
-          )}
-          <AvatarFallback>{getInitials(currentUser.name)}</AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{currentUser.name}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {currentUser.email}
-          </p>
-        </div>
-        <Button variant="ghost" size="icon-sm" aria-label="Settings">
-          <Settings />
-        </Button>
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring data-popup-open:bg-sidebar-accent">
+          <UserAvatar name={user.name} email={user.email} image={user.image} size="lg" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{user.name ?? user.email}</p>
+            {user.name && (
+              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+            )}
+          </div>
+          <ChevronsUpDown className="size-4 text-muted-foreground" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" sideOffset={8}>
+          <DropdownMenuItem render={<Link href="/profile" />}>
+            <User />
+            Profile
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => signOutUser()}>
+            <LogOut />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </SidebarFooter>
   );
 }

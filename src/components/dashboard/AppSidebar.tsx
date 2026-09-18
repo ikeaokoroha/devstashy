@@ -6,7 +6,11 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import type { ItemTypeWithCount, SidebarCollections } from "@/types/dashboard";
+import type {
+  ItemTypeWithCount,
+  SidebarCollections,
+  SidebarUserInfo,
+} from "@/types/dashboard";
 import { SidebarCollectionsNav } from "./SidebarCollectionsNav";
 import { SidebarTypesNav } from "./SidebarTypesNav";
 import { SidebarUser } from "./SidebarUser";
@@ -14,9 +18,10 @@ import { SidebarUser } from "./SidebarUser";
 interface AppSidebarProps {
   itemTypes: ItemTypeWithCount[];
   collections: SidebarCollections;
+  user: SidebarUserInfo;
 }
 
-export function AppSidebar({ itemTypes, collections }: AppSidebarProps) {
+export function AppSidebar({ itemTypes, collections, user }: AppSidebarProps) {
   return (
     <Sidebar>
       <SidebarHeader className="h-16 flex-row items-center px-4">
@@ -34,7 +39,7 @@ export function AppSidebar({ itemTypes, collections }: AppSidebarProps) {
         <SidebarCollectionsNav collections={collections} />
       </SidebarContent>
 
-      <SidebarUser />
+      <SidebarUser user={user} />
     </Sidebar>
   );
 }
