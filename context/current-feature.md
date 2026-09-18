@@ -1,18 +1,42 @@
-# Current Feature
+# Current Feature: Auth Phase 2 — Email/Password Credentials
 
-<!-- Feature name and short description -->
+Add a Credentials provider for email/password sign-in, plus a registration API route.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Hash passwords with bcryptjs (already installed)
+- Add a password field to the User model via migration, if not already there
+- Add a Credentials provider placeholder to `src/auth.config.ts` (`authorize: () => null`)
+- Override the Credentials provider in `src/auth.ts` with real bcrypt validation
+- Add `POST /api/auth/register`:
+  - Accepts name, email, password, confirmPassword
+  - Validates that the passwords match
+  - Rejects emails that already have an account
+  - Hashes the password with bcryptjs and creates the user
+  - Returns a success/error response
+- GitHub OAuth keeps working
 
 ## Notes
 
-<!-- Any extra notes -->
+- Split pattern: auth.config.ts stays edge-safe (no bcrypt/Prisma), so it only holds the placeholder; auth.ts replaces it with the real `authorize`.
+- The User model already has `password String?` (hashed; null for OAuth-only users) from the init migration, so no migration should be needed.
+- Coding standards say to validate inputs with Zod, but zod isn't installed yet.
+- Testing:
+  1. Register via curl:
+     ```bash
+     curl -X POST http://localhost:3000/api/auth/register \
+       -H "Content-Type: application/json" \
+       -d '{"name":"Test","email":"test@test.com","password":"password123","confirmPassword":"password123"}'
+     ```
+  2. Go to `/api/auth/signin`
+  3. Sign in with email/password
+  4. Verify the redirect to `/dashboard`
+  5. Verify GitHub OAuth still works
+- Reference: https://authjs.dev/getting-started/authentication/credentials
 
 ## History
 
