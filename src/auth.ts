@@ -4,11 +4,13 @@ import NextAuth, { type User } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
 import authConfig, { CREDENTIALS_FIELDS } from "@/auth.config";
+import { EmailNotVerifiedError } from "@/lib/auth-errors";
 import { signInSchema } from "@/lib/auth-validation";
 import { prisma } from "@/lib/prisma";
 
 // Returns the user when the email has a password and it matches; null makes
-// Auth.js reject the sign-in without saying which part was wrong.
+// Auth.js reject the sign-in without saying which part was wrong. A correct
+// password on an unverified email gets its own error so the user can be told.
 async function authorizeCredentials(credentials: unknown): Promise<User | null> {
   const parsed = signInSchema.safeParse(credentials);
   if (!parsed.success) {
@@ -17,7 +19,7 @@ async function authorizeCredentials(credentials: unknown): Promise<User | null> 
 
   const user = await prisma.user.findUnique({
     where: { email: parsed.data.email },
-    select: { id: true, name: true, email: true, image: true, password: true },
+    select: { id: true, name: true, email: true, image: true, password: true, emailVerified: true },
   });
   if (!user?.password) {
     return null;
@@ -26,6 +28,9 @@ async function authorizeCredentials(credentials: unknown): Promise<User | null> 
   const isValid = await bcrypt.compare(parsed.data.password, user.password);
   if (!isValid) {
     return null;
+  }
+  if (!user.emailVerified) {
+    throw new EmailNotVerifiedError();
   }
 
   return { id: user.id, name: user.name, email: user.email, image: user.image };

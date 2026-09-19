@@ -4,10 +4,17 @@ import { AuthError } from "next-auth";
 
 import { signIn, signOut } from "@/auth";
 import { SIGN_IN_PATH } from "@/auth.config";
-import { signInSchema } from "@/lib/auth-validation";
+import { EmailNotVerifiedError } from "@/lib/auth-errors";
+import { resendVerificationSchema, signInSchema } from "@/lib/auth-validation";
+import { resendVerificationLink } from "@/lib/email-verification";
 import type { ActionResult } from "@/types/actions";
 
 const DEFAULT_SIGN_IN_REDIRECT = "/dashboard";
+
+interface SignInData {
+  email: string;
+  emailNotVerified?: boolean;
+}
 
 // Auth.js's redirect callback keeps the callback URL on this origin.
 function getRedirectTo(formData: FormData) {
@@ -17,9 +24,9 @@ function getRedirectTo(formData: FormData) {
 
 // The email is echoed back so the form can refill it after React resets it.
 export async function signInWithCredentials(
-  _previous: ActionResult<{ email: string }> | null,
+  _previous: ActionResult<SignInData> | null,
   formData: FormData,
-): Promise<ActionResult<{ email: string }>> {
+): Promise<ActionResult<SignInData>> {
   const email = String(formData.get("email") ?? "");
   const parsed = signInSchema.safeParse({ email, password: formData.get("password") });
   if (!parsed.success) {
@@ -31,6 +38,13 @@ export async function signInWithCredentials(
     await signIn("credentials", { ...parsed.data, redirectTo: getRedirectTo(formData) });
     return { success: true };
   } catch (error) {
+    if (error instanceof EmailNotVerifiedError) {
+      return {
+        success: false,
+        data: { email, emailNotVerified: true },
+        error: "Verify your email before signing in. Check your inbox for the link.",
+      };
+    }
     if (error instanceof AuthError) {
       const message =
         error.type === "CredentialsSignin"
@@ -39,6 +53,26 @@ export async function signInWithCredentials(
       return { success: false, data: { email }, error: message };
     }
     throw error;
+  }
+}
+
+// Replies the same way whether or not a link was sent, so it can't be used to
+// find out which emails are registered.
+export async function resendVerificationEmail(
+  _previous: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = resendVerificationSchema.safeParse({ email: formData.get("email") });
+  if (!parsed.success) {
+    return { success: false, error: "Enter a valid email" };
+  }
+
+  try {
+    await resendVerificationLink(parsed.data.email);
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to resend verification email", error);
+    return { success: false, error: "Couldn't send the email. Please try again." };
   }
 }
 

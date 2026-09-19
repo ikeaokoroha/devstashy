@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { FormMessage } from "@/components/auth/FormMessage";
 import { GitHubSignInButton } from "@/components/auth/GitHubSignInButton";
+import { ResendVerificationForm } from "@/components/auth/ResendVerificationForm";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -16,6 +17,13 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 };
 const DEFAULT_OAUTH_ERROR = "Sign in failed. Please try again.";
 
+// The verify-email route redirects here with ?verifyError=<result>.
+const VERIFY_ERROR_MESSAGES: Record<string, string> = {
+  expired: "This verification link has expired. Enter your email to get a new one.",
+  invalid:
+    "This verification link is invalid or has already been used. If you still need to verify, enter your email to get a new one.",
+};
+
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -25,6 +33,9 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
   const callbackUrl = firstParam(params.callbackUrl);
   const error = firstParam(params.error);
   const registered = firstParam(params.registered) === "1";
+  const verified = firstParam(params.verified) === "1";
+  const verifyErrorParam = firstParam(params.verifyError);
+  const verifyError = verifyErrorParam && VERIFY_ERROR_MESSAGES[verifyErrorParam];
 
   return (
     <Card>
@@ -34,7 +45,18 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
       </CardHeader>
       <CardContent className="grid gap-4">
         {registered && (
-          <FormMessage variant="success">Account created. Sign in to continue.</FormMessage>
+          <FormMessage variant="success">
+            Account created. Check your email for a link to verify your address, then sign in.
+          </FormMessage>
+        )}
+        {verified && (
+          <FormMessage variant="success">Email verified. Sign in to continue.</FormMessage>
+        )}
+        {verifyError && (
+          <>
+            <FormMessage variant="error">{verifyError}</FormMessage>
+            <ResendVerificationForm />
+          </>
         )}
         {error && (
           <FormMessage variant="error">

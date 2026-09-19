@@ -1,18 +1,32 @@
-# Current Feature
+# Current Feature: Email Verification on Register
 
-<!-- Feature name and short description -->
+Require new email/password users to verify their address by clicking a link sent with Resend before they can sign in.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Add the `resend` package and a small email helper in `src/lib` that reads `RESEND_API_KEY` from `.env`
+- On successful registration, create a single-use verification token with an expiry and email the user a verification link
+- Add a verification route that checks the token, sets `User.emailVerified`, deletes the token, and redirects to `/sign-in` with a success message
+- Expired, invalid, or already-used links redirect to `/sign-in` with a clear error message
+- Credentials sign-in rejects users whose `emailVerified` is null, with a message telling them to check their email
+- After registering, the user is told to check their inbox instead of the current "account created" banner
+- Users can request a new verification email if the link expired or never arrived
+- GitHub OAuth sign-in is unaffected
 
 ## Notes
 
-<!-- Any extra notes -->
+- Reuse the existing `VerificationToken` model (`identifier`, `token`, `expires`) — no migration should be needed. Store a hash of the token rather than the raw value so a database leak can't be used to verify accounts.
+- The registration API is `src/app/api/auth/register/route.ts`; credentials `authorize` is in `src/auth.ts`, which returns `null` on failure, so the unverified case needs its own error (e.g. a `CredentialsSignin` subclass with a `code`) for `signInWithCredentials` in `src/actions/auth.ts` to show a distinct message.
+- The verification link needs an absolute base URL. `.env` has no `AUTH_URL`/app URL variable yet — add one (e.g. `NEXT_PUBLIC_APP_URL` or reuse `AUTH_URL`) for dev and Vercel.
+- Resend's sender: without a verified domain, only `onboarding@resend.dev` can send, and only to the Resend account's own email. Make the from address configurable via env.
+- If sending the email fails, registration should still succeed; the user can use "resend verification email".
+- The resend-verification endpoint must not reveal whether an email is registered, and should be rate limited or throttled (e.g. skip if a fresh token was issued recently).
+- The seeded demo user already has `emailVerified` set, so it can still sign in.
+- Existing credentials users in the dev database with null `emailVerified` will be locked out until they verify.
 
 ## History
 

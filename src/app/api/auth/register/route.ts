@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { Prisma } from "@/generated/prisma/client";
 import { registerSchema } from "@/lib/auth-validation";
+import { sendVerificationLink } from "@/lib/email-verification";
 import { prisma } from "@/lib/prisma";
 
 const BCRYPT_ROUNDS = 12;
@@ -36,6 +37,13 @@ export async function POST(request: Request) {
       data: { name, email, password: await bcrypt.hash(password, BCRYPT_ROUNDS) },
       select: { id: true, name: true, email: true },
     });
+
+    // The account exists either way; if the email fails the user can request a new link.
+    try {
+      await sendVerificationLink(email);
+    } catch (error) {
+      console.error("Failed to send verification email", error);
+    }
 
     return NextResponse.json({ success: true, data: user }, { status: 201 });
   } catch (error) {
