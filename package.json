@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:test": "tsx scripts/test-db.ts",
+    "db:delete-users": "tsx scripts/delete-non-demo-users.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
