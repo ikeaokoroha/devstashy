@@ -1,32 +1,18 @@
-# Current Feature: Email Verification on Register
+# Current Feature
 
-Require new email/password users to verify their address by clicking a link sent with Resend before they can sign in.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Add the `resend` package and a small email helper in `src/lib` that reads `RESEND_API_KEY` from `.env`
-- On successful registration, create a single-use verification token with an expiry and email the user a verification link
-- Add a verification route that checks the token, sets `User.emailVerified`, deletes the token, and redirects to `/sign-in` with a success message
-- Expired, invalid, or already-used links redirect to `/sign-in` with a clear error message
-- Credentials sign-in rejects users whose `emailVerified` is null, with a message telling them to check their email
-- After registering, the user is told to check their inbox instead of the current "account created" banner
-- Users can request a new verification email if the link expired or never arrived
-- GitHub OAuth sign-in is unaffected
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Reuse the existing `VerificationToken` model (`identifier`, `token`, `expires`) — no migration should be needed. Store a hash of the token rather than the raw value so a database leak can't be used to verify accounts.
-- The registration API is `src/app/api/auth/register/route.ts`; credentials `authorize` is in `src/auth.ts`, which returns `null` on failure, so the unverified case needs its own error (e.g. a `CredentialsSignin` subclass with a `code`) for `signInWithCredentials` in `src/actions/auth.ts` to show a distinct message.
-- The verification link needs an absolute base URL. `.env` has no `AUTH_URL`/app URL variable yet — add one (e.g. `NEXT_PUBLIC_APP_URL` or reuse `AUTH_URL`) for dev and Vercel.
-- Resend's sender: without a verified domain, only `onboarding@resend.dev` can send, and only to the Resend account's own email. Make the from address configurable via env.
-- If sending the email fails, registration should still succeed; the user can use "resend verification email".
-- The resend-verification endpoint must not reveal whether an email is registered, and should be rate limited or throttled (e.g. skip if a fresh token was issued recently).
-- The seeded demo user already has `emailVerified` set, so it can still sign in.
-- Existing credentials users in the dev database with null `emailVerified` will be locked out until they verify.
+<!-- Any extra notes -->
 
 ## History
 
@@ -73,3 +59,6 @@ Added email/password sign-in alongside GitHub, plus a registration API. src/auth
 
 Auth Phase 3 — Sign In, Register & Sign Out UI
 Replaced NextAuth's default pages with custom /sign-in and /register pages in a centered (auth) route group layout. src/auth.config.ts exports SIGN_IN_PATH and sets pages.signIn to it, and src/proxy.ts now redirects signed-out visitors there. Sign-in uses server actions in src/actions/auth.ts: signInWithCredentials (useActionState, validated with signInSchema, CredentialsSignin mapped to "Invalid email or password", the email echoed back so React's form reset doesn't clear it) and signInWithGitHub, both passing the callbackUrl through; the page also shows OAuth errors Auth.js redirects back with (?error=, e.g. OAuthAccountNotLinked) and a success banner after registering. RegisterForm validates with the shared registerSchema on the client (per-field errors via z.flattenError), posts to /api/auth/register, shows server errors like a taken email, and redirects to /sign-in?registered=1. Shared FormField and FormMessage components live in src/components/auth, and an ActionResult type in src/types/actions.ts. The sidebar footer now shows the session user (the dashboard layout reads auth() and passes name, email, and image through AppSidebar) with a reusable UserAvatar in src/components/shared (image, or initials from the first and last words of the name, falling back to the email's first letter) and an upward dropdown with Profile (links to /profile, not built yet) and Sign out (signOutUser, redirects to /sign-in). Added the shadcn dropdown-menu and label components. Dashboard data is still scoped to the demo user via getCurrentUserId, and mock-data.ts is no longer imported but kept for a later cleanup.
+
+Email Verification on Register
+New email/password users must verify their address before signing in. Registration sends a verification link through Resend (src/lib/email.ts; lazy client reading RESEND_API_KEY, sender from EMAIL_FROM defaulting to onboarding@resend.dev). src/lib/email-verification.ts reuses the VerificationToken model with no migration: tokens are 32 random bytes stored as a SHA-256 hash, expire after 24 hours, and replace any earlier token for the email; links are built from APP_URL (localhost fallback in dev, required in production) rather than the request host, so a spoofed Host header can't redirect the token. GET /api/auth/verify-email consumes the token in a transaction (deleted first, so single-use) and redirects to /sign-in with ?verified=1 or ?verifyError=expired|invalid. authorize in src/auth.ts throws EmailNotVerifiedError (a CredentialsSignin subclass in src/lib/auth-errors.ts) only after the password matches, and signInWithCredentials shows a verify-your-email message with a ResendVerificationForm. The resendVerificationEmail server action answers the same way for any email and skips addresses sent a link in the last 60 seconds. If the email fails at registration, the account is still created. The sign-in page's register banner now says to check your inbox. Also added scripts/delete-non-demo-users.ts (npm run db:delete-users, dry run unless --confirm) to delete every user except the demo user with their content; used it to clear test users from the dev branch.
