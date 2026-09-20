@@ -1,18 +1,32 @@
-# Current Feature
+# Current Feature: Email Verification Toggle
 
-<!-- Feature name and short description -->
+An environment variable that turns the whole email verification system on or off, so email/password sign-up works while Resend has no verified domain.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Read `REQUIRE_EMAIL_VERIFICATION` once in a new `src/lib/feature-flags.ts`, defaulting to on when it is unset or malformed
+- When off, registration skips the verification email and sets `emailVerified` at sign-up, so new users can sign in straight away
+- When off, credentials sign-in never throws `EmailNotVerifiedError`
+- When off, the sign-in page hides the verification banners and the resend form, and the resend action does nothing
+- When on, behavior is exactly what it is today
+- Set the flag to `false` in `.env` and document it, so local sign-up works without a Resend domain
+- Verification code paths stay in place and untouched, so turning the flag back on needs no code change
 
 ## Notes
 
-<!-- Any extra notes -->
+- Decided: an env variable (per-environment, no code change) over a committed constant or deriving it from `EMAIL_FROM`; and marking new accounts verified at sign-up while off, so re-enabling the flag doesn't lock those users out.
+- Default on: a missing or misspelled value must not silently disable verification. Only an explicit `false` (case-insensitive, trimmed) turns it off.
+- Parse the value in one place, `src/lib/feature-flags.ts`. It must not be a `NEXT_PUBLIC_` variable — this is a server-side rule, and it must be read in the server component/action, not the client.
+- Touch points from the last feature: `src/app/api/auth/register/route.ts` (sends the link), `src/auth.ts` (`authorizeCredentials` throws `EmailNotVerifiedError`), `src/actions/auth.ts` (`resendVerificationEmail`), `src/app/(auth)/sign-in/page.tsx` (`registered`, `verified`, `verifyError` banners), `src/components/auth/SignInForm.tsx` (the resend form).
+- The registered banner needs two versions: with the flag on, "check your email"; with it off, the old "Account created. Sign in to continue."
+- Leave `/api/auth/verify-email` working even when the flag is off, so links already sent still verify instead of erroring.
+- Existing unverified accounts in the database still can't sign in while the flag is off, because the check is skipped but `emailVerified` stays null — that's fine, and `npm run db:delete-users` clears the dev ones.
+- Remember to set `REQUIRE_EMAIL_VERIFICATION=false` in Vercel as well; the code defaults to on, so production stays blocked for non-Resend addresses until it's set.
+- Related, not in scope: `APP_URL` is still unset on Vercel, and there's still no domain verified in Resend.
 
 ## History
 

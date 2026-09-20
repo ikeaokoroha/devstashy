@@ -7,6 +7,7 @@ import { SIGN_IN_PATH } from "@/auth.config";
 import { EmailNotVerifiedError } from "@/lib/auth-errors";
 import { resendVerificationSchema, signInSchema } from "@/lib/auth-validation";
 import { resendVerificationLink } from "@/lib/email-verification";
+import { REQUIRE_EMAIL_VERIFICATION } from "@/lib/feature-flags";
 import type { ActionResult } from "@/types/actions";
 
 const DEFAULT_SIGN_IN_REDIRECT = "/dashboard";
@@ -62,6 +63,11 @@ export async function resendVerificationEmail(
   _previous: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
+  // With verification off nothing links here, but a stale page could still submit.
+  if (!REQUIRE_EMAIL_VERIFICATION) {
+    return { success: true };
+  }
+
   const parsed = resendVerificationSchema.safeParse({ email: formData.get("email") });
   if (!parsed.success) {
     return { success: false, error: "Enter a valid email" };

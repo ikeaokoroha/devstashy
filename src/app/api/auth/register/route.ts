@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@/generated/prisma/client";
 import { registerSchema } from "@/lib/auth-validation";
 import { sendVerificationLink } from "@/lib/email-verification";
+import { REQUIRE_EMAIL_VERIFICATION } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 
 const BCRYPT_ROUNDS = 12;
@@ -34,15 +35,24 @@ export async function POST(request: Request) {
     }
 
     const user = await prisma.user.create({
-      data: { name, email, password: await bcrypt.hash(password, BCRYPT_ROUNDS) },
+      data: {
+        name,
+        email,
+        password: await bcrypt.hash(password, BCRYPT_ROUNDS),
+        // With verification off the address is never confirmed, but marking it
+        // verified keeps these accounts usable if the flag is turned back on.
+        emailVerified: REQUIRE_EMAIL_VERIFICATION ? null : new Date(),
+      },
       select: { id: true, name: true, email: true },
     });
 
-    // The account exists either way; if the email fails the user can request a new link.
-    try {
-      await sendVerificationLink(email);
-    } catch (error) {
-      console.error("Failed to send verification email", error);
+    if (REQUIRE_EMAIL_VERIFICATION) {
+      // The account exists either way; if the email fails the user can request a new link.
+      try {
+        await sendVerificationLink(email);
+      } catch (error) {
+        console.error("Failed to send verification email", error);
+      }
     }
 
     return NextResponse.json({ success: true, data: user }, { status: 201 });

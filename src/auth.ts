@@ -6,6 +6,7 @@ import Credentials from "next-auth/providers/credentials";
 import authConfig, { CREDENTIALS_FIELDS } from "@/auth.config";
 import { EmailNotVerifiedError } from "@/lib/auth-errors";
 import { signInSchema } from "@/lib/auth-validation";
+import { REQUIRE_EMAIL_VERIFICATION } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 
 // Returns the user when the email has a password and it matches; null makes
@@ -29,7 +30,7 @@ async function authorizeCredentials(credentials: unknown): Promise<User | null> 
   if (!isValid) {
     return null;
   }
-  if (!user.emailVerified) {
+  if (REQUIRE_EMAIL_VERIFICATION && !user.emailVerified) {
     throw new EmailNotVerifiedError();
   }
 

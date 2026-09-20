@@ -6,6 +6,7 @@ import { GitHubSignInButton } from "@/components/auth/GitHubSignInButton";
 import { ResendVerificationForm } from "@/components/auth/ResendVerificationForm";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { REQUIRE_EMAIL_VERIFICATION } from "@/lib/feature-flags";
 
 export const metadata: Metadata = { title: "Sign in · Devstashy" };
 
@@ -33,8 +34,9 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
   const callbackUrl = firstParam(params.callbackUrl);
   const error = firstParam(params.error);
   const registered = firstParam(params.registered) === "1";
-  const verified = firstParam(params.verified) === "1";
-  const verifyErrorParam = firstParam(params.verifyError);
+  // Verification banners only make sense while the flag is on.
+  const verified = REQUIRE_EMAIL_VERIFICATION && firstParam(params.verified) === "1";
+  const verifyErrorParam = REQUIRE_EMAIL_VERIFICATION ? firstParam(params.verifyError) : undefined;
   const verifyError = verifyErrorParam && VERIFY_ERROR_MESSAGES[verifyErrorParam];
 
   return (
@@ -46,7 +48,9 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
       <CardContent className="grid gap-4">
         {registered && (
           <FormMessage variant="success">
-            Account created. Check your email for a link to verify your address, then sign in.
+            {REQUIRE_EMAIL_VERIFICATION
+              ? "Account created. Check your email for a link to verify your address, then sign in."
+              : "Account created. Sign in to continue."}
           </FormMessage>
         )}
         {verified && (
