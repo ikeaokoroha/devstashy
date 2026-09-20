@@ -1,16 +1,30 @@
 "use server";
 
 import { AuthError } from "next-auth";
+import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { signIn, signOut } from "@/auth";
 import { SIGN_IN_PATH } from "@/auth.config";
 import { EmailNotVerifiedError } from "@/lib/auth-errors";
-import { resendVerificationSchema, signInSchema } from "@/lib/auth-validation";
+import {
+  forgotPasswordSchema,
+  resendVerificationSchema,
+  resetPasswordSchema,
+  signInSchema,
+} from "@/lib/auth-validation";
 import { resendVerificationLink } from "@/lib/email-verification";
 import { REQUIRE_EMAIL_VERIFICATION } from "@/lib/feature-flags";
+import {
+  resetPasswordWithToken,
+  sendPasswordResetLink,
+  type PasswordResetResult,
+} from "@/lib/password-reset";
 import type { ActionResult } from "@/types/actions";
 
 const DEFAULT_SIGN_IN_REDIRECT = "/dashboard";
+const RESET_LINK_INVALID_ERROR =
+  "This reset link is invalid or has already been used. Request a new one.";
 
 interface SignInData {
   email: string;
@@ -80,6 +94,83 @@ export async function resendVerificationEmail(
     console.error("Failed to resend verification email", error);
     return { success: false, error: "Couldn't send the email. Please try again." };
   }
+}
+
+// Replies the same way whether or not the email has an account, so it can't be
+// used to find out which emails are registered.
+export async function requestPasswordReset(
+  _previous: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = forgotPasswordSchema.safeParse({ email: formData.get("email") });
+  if (!parsed.success) {
+    return { success: false, error: "Enter a valid email" };
+  }
+
+  try {
+    await sendPasswordResetLink(parsed.data.email);
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to send password reset email", error);
+    return { success: false, error: "Couldn't send the email. Please try again." };
+  }
+}
+
+interface ResetPasswordData {
+  fieldErrors?: Partial<Record<"password" | "confirmPassword", string>>;
+  // The link is no good, so a new one is the only way forward.
+  linkExpired?: boolean;
+}
+
+export async function resetPassword(
+  _previous: ActionResult<ResetPasswordData> | null,
+  formData: FormData,
+): Promise<ActionResult<ResetPasswordData>> {
+  const parsed = resetPasswordSchema.safeParse({
+    email: formData.get("email"),
+    token: formData.get("token"),
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+  if (!parsed.success) {
+    const { fieldErrors } = z.flattenError(parsed.error);
+    // A bad email or token means a mangled link, not something the user can fix here.
+    if (fieldErrors.email || fieldErrors.token) {
+      return { success: false, data: { linkExpired: true }, error: RESET_LINK_INVALID_ERROR };
+    }
+    return {
+      success: false,
+      data: {
+        fieldErrors: {
+          password: fieldErrors.password?.[0],
+          confirmPassword: fieldErrors.confirmPassword?.[0],
+        },
+      },
+    };
+  }
+
+  const { email, token, password } = parsed.data;
+  let result: PasswordResetResult;
+  try {
+    result = await resetPasswordWithToken(email, token, password);
+  } catch (error) {
+    console.error("Password reset failed", error);
+    return { success: false, error: "Couldn't reset your password. Please try again." };
+  }
+
+  if (result !== "reset") {
+    return {
+      success: false,
+      data: { linkExpired: true },
+      error:
+        result === "expired"
+          ? "This reset link has expired. Request a new one."
+          : RESET_LINK_INVALID_ERROR,
+    };
+  }
+
+  // Outside the try: redirect signals by throwing.
+  redirect(`${SIGN_IN_PATH}?reset=1`);
 }
 
 export async function signInWithGitHub(formData: FormData) {
