@@ -1,32 +1,18 @@
-# Current Feature: Email Verification Toggle
+# Current Feature
 
-An environment variable that turns the whole email verification system on or off, so email/password sign-up works while Resend has no verified domain.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Read `REQUIRE_EMAIL_VERIFICATION` once in a new `src/lib/feature-flags.ts`, defaulting to on when it is unset or malformed
-- When off, registration skips the verification email and sets `emailVerified` at sign-up, so new users can sign in straight away
-- When off, credentials sign-in never throws `EmailNotVerifiedError`
-- When off, the sign-in page hides the verification banners and the resend form, and the resend action does nothing
-- When on, behavior is exactly what it is today
-- Set the flag to `false` in `.env` and document it, so local sign-up works without a Resend domain
-- Verification code paths stay in place and untouched, so turning the flag back on needs no code change
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Decided: an env variable (per-environment, no code change) over a committed constant or deriving it from `EMAIL_FROM`; and marking new accounts verified at sign-up while off, so re-enabling the flag doesn't lock those users out.
-- Default on: a missing or misspelled value must not silently disable verification. Only an explicit `false` (case-insensitive, trimmed) turns it off.
-- Parse the value in one place, `src/lib/feature-flags.ts`. It must not be a `NEXT_PUBLIC_` variable — this is a server-side rule, and it must be read in the server component/action, not the client.
-- Touch points from the last feature: `src/app/api/auth/register/route.ts` (sends the link), `src/auth.ts` (`authorizeCredentials` throws `EmailNotVerifiedError`), `src/actions/auth.ts` (`resendVerificationEmail`), `src/app/(auth)/sign-in/page.tsx` (`registered`, `verified`, `verifyError` banners), `src/components/auth/SignInForm.tsx` (the resend form).
-- The registered banner needs two versions: with the flag on, "check your email"; with it off, the old "Account created. Sign in to continue."
-- Leave `/api/auth/verify-email` working even when the flag is off, so links already sent still verify instead of erroring.
-- Existing unverified accounts in the database still can't sign in while the flag is off, because the check is skipped but `emailVerified` stays null — that's fine, and `npm run db:delete-users` clears the dev ones.
-- Remember to set `REQUIRE_EMAIL_VERIFICATION=false` in Vercel as well; the code defaults to on, so production stays blocked for non-Resend addresses until it's set.
-- Related, not in scope: `APP_URL` is still unset on Vercel, and there's still no domain verified in Resend.
+<!-- Any extra notes -->
 
 ## History
 
@@ -76,3 +62,6 @@ Replaced NextAuth's default pages with custom /sign-in and /register pages in a 
 
 Email Verification on Register
 New email/password users must verify their address before signing in. Registration sends a verification link through Resend (src/lib/email.ts; lazy client reading RESEND_API_KEY, sender from EMAIL_FROM defaulting to onboarding@resend.dev). src/lib/email-verification.ts reuses the VerificationToken model with no migration: tokens are 32 random bytes stored as a SHA-256 hash, expire after 24 hours, and replace any earlier token for the email; links are built from APP_URL (localhost fallback in dev, required in production) rather than the request host, so a spoofed Host header can't redirect the token. GET /api/auth/verify-email consumes the token in a transaction (deleted first, so single-use) and redirects to /sign-in with ?verified=1 or ?verifyError=expired|invalid. authorize in src/auth.ts throws EmailNotVerifiedError (a CredentialsSignin subclass in src/lib/auth-errors.ts) only after the password matches, and signInWithCredentials shows a verify-your-email message with a ResendVerificationForm. The resendVerificationEmail server action answers the same way for any email and skips addresses sent a link in the last 60 seconds. If the email fails at registration, the account is still created. The sign-in page's register banner now says to check your inbox. Also added scripts/delete-non-demo-users.ts (npm run db:delete-users, dry run unless --confirm) to delete every user except the demo user with their content; used it to clear test users from the dev branch.
+
+Email Verification Toggle
+Added src/lib/feature-flags.ts with REQUIRE_EMAIL_VERIFICATION, read once from the environment (trimmed and lowercased) and on unless the value is exactly "false", so a typo or missing variable can't silently disable verification. With the flag off, the register route creates users with emailVerified already set and sends no email (so re-enabling the flag doesn't lock them out), authorizeCredentials in src/auth.ts skips the EmailNotVerifiedError check, the sign-in page shows the old "Account created. Sign in to continue." banner and hides the verified/verifyError banners, and resendVerificationEmail returns success without sending in case a stale page submits it. The resend form inside SignInForm needed no change, since it only renders on the emailNotVerified result the flag prevents. /api/auth/verify-email still verifies links either way. All verification code is left intact, so switching the flag back on needs no code change. Set to false in .env with a comment; Vercel still needs the same variable (and a redeploy, since the value is read at startup), otherwise production defaults to verification on.
