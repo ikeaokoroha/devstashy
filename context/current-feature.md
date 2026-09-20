@@ -1,49 +1,18 @@
-# Current Feature: Forgot Password
+# Current Feature
 
-Let users who signed up with email/password reset it from a link on the sign-in page, using a
-single-use emailed token stored in the existing `VerificationToken` model.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- "Forgot password?" link on the sign-in page, next to the password field, going to `/forgot-password`.
-- `/forgot-password` page: email field, submits to a server action that emails a reset link.
-  Always shows the same confirmation, whether or not the address has an account, so the form
-  can't be used to discover registered emails.
-- Reset tokens reuse `VerificationToken` — no migration. Same shape as email verification:
-  32 random bytes, stored as a SHA-256 hash, single-use, but with a short TTL (1 hour) and a
-  namespaced `identifier` so a reset token can't be mistaken for a verification token.
-- `/reset-password` page: reads `email` and `token` from the query string, validates the token
-  before showing the form, and shows an expired/invalid message with a link back to
-  `/forgot-password` when it doesn't check out.
-- Submitting a new password (with confirmation, validated by a shared zod schema) hashes it with
-  12 bcrypt rounds, updates the user, consumes the token, and redirects to `/sign-in` with a
-  success banner.
-- Resend goes through the same cooldown treatment as verification: skip addresses sent a reset
-  link in the last 60 seconds.
-- Reset emails go through the existing Resend setup in `src/lib/email.ts`, with the link built
-  from `APP_URL` rather than the request Host header.
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Mirror `src/lib/email-verification.ts` in a new `src/lib/password-reset.ts`; the hashing,
-  `getAppUrl`, and cooldown logic are worth sharing rather than copying if it stays readable.
-- `VerificationToken` is keyed on `@@unique([identifier, token])`, and email verification uses the
-  bare email as `identifier`. Password reset must use a prefixed identifier (e.g.
-  `password-reset:{email}`) so `deleteMany({ identifier: email })` in the verification flow doesn't
-  wipe reset tokens and vice versa.
-- Only users with a `password` set can reset — GitHub-only accounts get the same silent no-op the
-  resend-verification flow uses.
-- A successful reset should also set `emailVerified` if it's null: receiving the email proves
-  ownership. Keeps `REQUIRE_EMAIL_VERIFICATION` from locking out someone who resets before verifying.
-- With `REQUIRE_EMAIL_VERIFICATION=false` in `.env`, email sending still needs to work for this
-  feature — and per the known gap, Resend only delivers to the account owner's address until a
-  domain is verified, so testing is limited to that address.
-- Pages live in the existing `(auth)` route group; reuse `FormField`, `FormMessage`, the
-  `ActionResult` type, and the `useActionState` pattern from `SignInForm`.
+<!-- Any extra notes -->
 
 ## History
 
@@ -96,3 +65,6 @@ New email/password users must verify their address before signing in. Registrati
 
 Email Verification Toggle
 Added src/lib/feature-flags.ts with REQUIRE_EMAIL_VERIFICATION, read once from the environment (trimmed and lowercased) and on unless the value is exactly "false", so a typo or missing variable can't silently disable verification. With the flag off, the register route creates users with emailVerified already set and sends no email (so re-enabling the flag doesn't lock them out), authorizeCredentials in src/auth.ts skips the EmailNotVerifiedError check, the sign-in page shows the old "Account created. Sign in to continue." banner and hides the verified/verifyError banners, and resendVerificationEmail returns success without sending in case a stale page submits it. The resend form inside SignInForm needed no change, since it only renders on the emailNotVerified result the flag prevents. /api/auth/verify-email still verifies links either way. All verification code is left intact, so switching the flag back on needs no code change. Set to false in .env with a comment; Vercel still needs the same variable (and a redeploy, since the value is read at startup), otherwise production defaults to verification on.
+
+Forgot Password
+Email/password users can reset their password from a "Forgot password?" link next to the password field on the sign-in page. Reset tokens reuse the VerificationToken model with no migration: 32 random bytes stored as a SHA-256 hash, single-use, expiring after 1 hour, under a `password-reset:{email}` identifier so issuing or consuming one never touches the verification token stored under the bare email. src/lib/auth-tokens.ts now holds the pieces both flows share (hashToken, getAppUrl, issueToken, revokeTokens, wasTokenIssuedRecently) and src/lib/email-verification.ts was rewritten to use them, unchanged in behaviour. src/lib/password-reset.ts adds sendPasswordResetLink (a silent no-op for unknown emails, GitHub-only accounts, and addresses sent a link in the last 60 seconds), checkPasswordResetToken (checks without consuming, so the page can render the form) and resetPasswordWithToken (deletes the token first for single use, then sets the password, and fills in emailVerified when null since receiving the email proves ownership). /forgot-password and /reset-password live in the (auth) route group; the forgot page answers the same way for every address so it can't be used to find registered emails, and the reset page shows an expired/invalid message with a link back when the token doesn't check out. The requestPasswordReset and resetPassword server actions in src/actions/auth.ts use the useActionState pattern, with forgotPasswordSchema and resetPasswordSchema sharing registerSchema's password rules; a successful reset redirects to /sign-in?reset=1 for a success banner. FormField gained an optional labelAction slot for the forgot link. Both send paths now revoke the token they just issued when the email fails, so the 60s cooldown can't turn a failed send into a false success on retry — a bug found in review that email verification had too. Also moved password hashing into src/lib/password.ts (hashPassword/verifyPassword, one home for the 12 rounds) and folded both Resend emails onto a single sendActionEmail helper. Known gaps, left as is: a send failure still distinguishes a registered email from an unknown one, the reset page doesn't lowercase the email query param the way the action does, and JWT sessions issued before a reset stay valid (invalidating them needs a token-version column). Resend still only delivers to the account owner's address until a domain is verified, so the flow is untestable against other addresses.
