@@ -12,9 +12,9 @@ import { getCurrentUserId } from "@/lib/db/users";
 const SIDEBAR_FAVORITE_COLLECTIONS_LIMIT = 10;
 const SIDEBAR_RECENT_COLLECTIONS_LIMIT = 5;
 
-export default async function DashboardLayout({
-  children,
-}: LayoutProps<"/dashboard">) {
+// The signed-in shell: sidebar and top bar around /dashboard, /profile and the
+// pages that follow.
+export default async function AppLayout({ children }: LayoutProps<"/">) {
   // Written by SidebarProvider on toggle; read here so a collapsed sidebar doesn't flash open on reload.
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";

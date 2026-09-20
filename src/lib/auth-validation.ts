@@ -37,6 +37,15 @@ export const resetPasswordSchema = z
   })
   .refine((data) => data.password === data.confirmPassword, passwordsMatch);
 
+// Signed in already, so the current password stands in for the emailed token.
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password"),
+    password: newPasswordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, passwordsMatch);
+
 export const registerSchema = z
   .object({
     name: z.string().trim().min(1, "Name is required").max(100),
