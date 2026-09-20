@@ -34,6 +34,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
   const callbackUrl = firstParam(params.callbackUrl);
   const error = firstParam(params.error);
   const registered = firstParam(params.registered) === "1";
+  const reset = firstParam(params.reset) === "1";
   // Verification banners only make sense while the flag is on.
   const verified = REQUIRE_EMAIL_VERIFICATION && firstParam(params.verified) === "1";
   const verifyErrorParam = REQUIRE_EMAIL_VERIFICATION ? firstParam(params.verifyError) : undefined;
@@ -51,6 +52,11 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
             {REQUIRE_EMAIL_VERIFICATION
               ? "Account created. Check your email for a link to verify your address, then sign in."
               : "Account created. Sign in to continue."}
+          </FormMessage>
+        )}
+        {reset && (
+          <FormMessage variant="success">
+            Password updated. Sign in with your new password.
           </FormMessage>
         )}
         {verified && (

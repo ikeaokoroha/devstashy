@@ -1,13 +1,12 @@
-import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 
 import { Prisma } from "@/generated/prisma/client";
 import { registerSchema } from "@/lib/auth-validation";
 import { sendVerificationLink } from "@/lib/email-verification";
 import { REQUIRE_EMAIL_VERIFICATION } from "@/lib/feature-flags";
+import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 
-const BCRYPT_ROUNDS = 12;
 const EMAIL_TAKEN_ERROR = "An account with this email already exists";
 
 function errorResponse(error: string, status: number) {
@@ -38,7 +37,7 @@ export async function POST(request: Request) {
       data: {
         name,
         email,
-        password: await bcrypt.hash(password, BCRYPT_ROUNDS),
+        password: await hashPassword(password),
         // With verification off the address is never confirmed, but marking it
         // verified keeps these accounts usable if the flag is turned back on.
         emailVerified: REQUIRE_EMAIL_VERIFICATION ? null : new Date(),

@@ -5,15 +5,20 @@ interface FormFieldProps extends React.ComponentProps<"input"> {
   name: string;
   label: string;
   error?: string;
+  // Sits opposite the label, e.g. the sign-in form's forgot password link.
+  labelAction?: React.ReactNode;
 }
 
-export function FormField({ name, label, error, ...inputProps }: FormFieldProps) {
+export function FormField({ name, label, error, labelAction, ...inputProps }: FormFieldProps) {
   const id = `field-${name}`;
   const errorId = `${id}-error`;
 
   return (
     <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor={id}>{label}</Label>
+        {labelAction}
+      </div>
       <Input
         id={id}
         name={name}

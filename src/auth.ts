@@ -1,5 +1,4 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import bcrypt from "bcryptjs";
 import NextAuth, { type User } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
@@ -7,6 +6,7 @@ import authConfig, { CREDENTIALS_FIELDS } from "@/auth.config";
 import { EmailNotVerifiedError } from "@/lib/auth-errors";
 import { signInSchema } from "@/lib/auth-validation";
 import { REQUIRE_EMAIL_VERIFICATION } from "@/lib/feature-flags";
+import { verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 
 // Returns the user when the email has a password and it matches; null makes
@@ -26,7 +26,7 @@ async function authorizeCredentials(credentials: unknown): Promise<User | null> 
     return null;
   }
 
-  const isValid = await bcrypt.compare(parsed.data.password, user.password);
+  const isValid = await verifyPassword(parsed.data.password, user.password);
   if (!isValid) {
     return null;
   }

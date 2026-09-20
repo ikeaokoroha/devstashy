@@ -1,5 +1,10 @@
-import { createHash, randomBytes } from "node:crypto";
-
+import {
+  getAppUrl,
+  hashToken,
+  issueToken,
+  revokeTokens,
+  wasTokenIssuedRecently,
+} from "@/lib/auth-tokens";
 import { sendVerificationEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
@@ -11,47 +16,27 @@ export const VERIFY_EMAIL_PATH = "/api/auth/verify-email";
 
 export type VerifyEmailResult = "verified" | "expired" | "invalid";
 
-// Only the hash is stored, so a leaked database can't be used to verify accounts.
-function hashToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
+// Verification tokens are stored under the bare email; password reset namespaces
+// its own identifier so the two never collide.
+function tokenOptions(email: string) {
+  return { identifier: email, ttlMs: TOKEN_TTL_MS };
 }
 
-// The link's origin comes from config, never the request's Host header, so a
-// spoofed host can't send the token to another domain.
-function getAppUrl() {
-  if (process.env.APP_URL) {
-    return process.env.APP_URL;
-  }
-  if (process.env.NODE_ENV !== "production") {
-    return "http://localhost:3000";
-  }
-  throw new Error("APP_URL is not set");
-}
-
-// Replaces any earlier token for the email, so only the newest link works.
 export async function sendVerificationLink(email: string) {
-  const token = randomBytes(32).toString("hex");
-  await prisma.$transaction([
-    prisma.verificationToken.deleteMany({ where: { identifier: email } }),
-    prisma.verificationToken.create({
-      data: { identifier: email, token: hashToken(token), expires: new Date(Date.now() + TOKEN_TTL_MS) },
-    }),
-  ]);
+  const token = await issueToken(tokenOptions(email));
 
   const url = new URL(VERIFY_EMAIL_PATH, getAppUrl());
   url.searchParams.set("email", email);
   url.searchParams.set("token", token);
-  await sendVerificationEmail(email, url.toString());
-}
 
-// Tokens have no createdAt, but one issued within the cooldown still has
-// nearly its full lifetime left.
-async function wasLinkSentRecently(email: string) {
-  const recent = await prisma.verificationToken.findFirst({
-    where: { identifier: email, expires: { gt: new Date(Date.now() + TOKEN_TTL_MS - RESEND_COOLDOWN_MS) } },
-    select: { identifier: true },
-  });
-  return recent !== null;
+  try {
+    await sendVerificationEmail(email, url.toString());
+  } catch (error) {
+    // The token is already stored, so leaving it would make the resend cooldown
+    // skip the next attempt even though no link ever arrived.
+    await revokeTokens(tokenOptions(email).identifier);
+    throw error;
+  }
 }
 
 // Silently does nothing for unknown, OAuth-only, or already verified emails so
@@ -61,7 +46,11 @@ export async function resendVerificationLink(email: string) {
     where: { email },
     select: { password: true, emailVerified: true },
   });
-  if (!user?.password || user.emailVerified || (await wasLinkSentRecently(email))) {
+  if (
+    !user?.password ||
+    user.emailVerified ||
+    (await wasTokenIssuedRecently(tokenOptions(email), RESEND_COOLDOWN_MS))
+  ) {
     return;
   }
   await sendVerificationLink(email);

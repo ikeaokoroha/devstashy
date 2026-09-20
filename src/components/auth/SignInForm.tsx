@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 
 import { signInWithCredentials } from "@/actions/auth";
@@ -34,6 +35,14 @@ export function SignInForm({ callbackUrl }: SignInFormProps) {
           label="Password"
           type="password"
           autoComplete="current-password"
+          labelAction={
+            <Link
+              href="/forgot-password"
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Forgot password?
+            </Link>
+          }
           required
         />
         <Button type="submit" size="lg" disabled={isPending}>
