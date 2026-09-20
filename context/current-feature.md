@@ -1,25 +1,18 @@
-# Current Feature: Profile Page
+# Current Feature
 
-Profile page at `/profile` with user info, usage stats, change password and delete account.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Create the profile page at the `/profile` route, protected by authentication
-- Display user info: email, name, avatar (GitHub or initials), account creation date
-- Show usage stats: total items, total collections, and a breakdown by item type
-- Add account actions: change password (email/password users only) and delete account with a confirmation dialog
-- Follow existing codebase patterns for data fetching and components
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Avatar: use the GitHub avatar from OAuth when available, otherwise initials from name/email (the existing `UserAvatar` in `src/components/shared` already does this)
-- The change password action should only appear for users who signed up with email/password, not GitHub OAuth
-- Delete account needs a confirmation dialog to prevent accidental deletion
-- Item type breakdown shows counts for each type: snippets, prompts, notes, commands, links, files, images
+<!-- Any extra notes -->
 
 ## History
 
@@ -75,3 +68,6 @@ Added src/lib/feature-flags.ts with REQUIRE_EMAIL_VERIFICATION, read once from t
 
 Forgot Password
 Email/password users can reset their password from a "Forgot password?" link next to the password field on the sign-in page. Reset tokens reuse the VerificationToken model with no migration: 32 random bytes stored as a SHA-256 hash, single-use, expiring after 1 hour, under a `password-reset:{email}` identifier so issuing or consuming one never touches the verification token stored under the bare email. src/lib/auth-tokens.ts now holds the pieces both flows share (hashToken, getAppUrl, issueToken, revokeTokens, wasTokenIssuedRecently) and src/lib/email-verification.ts was rewritten to use them, unchanged in behaviour. src/lib/password-reset.ts adds sendPasswordResetLink (a silent no-op for unknown emails, GitHub-only accounts, and addresses sent a link in the last 60 seconds), checkPasswordResetToken (checks without consuming, so the page can render the form) and resetPasswordWithToken (deletes the token first for single use, then sets the password, and fills in emailVerified when null since receiving the email proves ownership). /forgot-password and /reset-password live in the (auth) route group; the forgot page answers the same way for every address so it can't be used to find registered emails, and the reset page shows an expired/invalid message with a link back when the token doesn't check out. The requestPasswordReset and resetPassword server actions in src/actions/auth.ts use the useActionState pattern, with forgotPasswordSchema and resetPasswordSchema sharing registerSchema's password rules; a successful reset redirects to /sign-in?reset=1 for a success banner. FormField gained an optional labelAction slot for the forgot link. Both send paths now revoke the token they just issued when the email fails, so the 60s cooldown can't turn a failed send into a false success on retry — a bug found in review that email verification had too. Also moved password hashing into src/lib/password.ts (hashPassword/verifyPassword, one home for the 12 rounds) and folded both Resend emails onto a single sendActionEmail helper. Known gaps, left as is: a send failure still distinguishes a registered email from an unknown one, the reset page doesn't lowercase the email query param the way the action does, and JWT sessions issued before a reset stay valid (invalidating them needs a token-version column). Resend still only delivers to the account owner's address until a domain is verified, so the flow is untestable against other addresses.
+
+Profile Page
+Added /profile with account info, usage stats and account actions. The dashboard shell moved into an (app) route group (src/app/(app)/layout.tsx, renamed AppLayout and typed LayoutProps<"/">) so the profile page shares the sidebar and top bar; /dashboard and /profile URLs are unchanged, and the proxy matcher gained /profile/:path*. The page is scoped to the signed-in user through a new requireUserId in src/lib/session.ts (auth() plus React cache, redirecting to sign-in when there's no session) rather than the demo user getCurrentUserId still stands in for, so the account actions can never hit the wrong row — the dashboard keeps using the demo user for now, which means a non-demo account sees zero stats on /profile. getProfileUser in src/lib/db/users.ts returns name, email, image, createdAt plus hasPassword and the linked OAuth providers; ProfileHeader shows them with the existing UserAvatar, a fixed en-US join date so the server and client render the same string, and a badge per provider. Stats reuse getItemStats, getCollectionStats and getSystemItemTypes with no new queries: the existing StatsCards renders the totals and ItemTypeBreakdown shows all 7 system types in spec order with their colors and icons, including the zeros. AccountActions renders ChangePasswordDialog only when hasPassword, and changePassword in src/actions/profile.ts re-checks server side, verifies the current password with bcrypt and rejects OAuth-only accounts; the dialog remounts its form on close since useActionState has no reset. DeleteAccountDialog requires the word DELETE typed in (DELETE_CONFIRMATION lives in src/lib/profile.ts because a "use server" module can only export async functions) and deleteAccount removes the user — items, collections, custom types, accounts and sessions all cascade from User — then signs out to /sign-in?deleted=1, where a new banner confirms it. changePasswordSchema in auth-validation.ts reuses registerSchema's password rules. Also extracted the inlined GitHub mark from GitHubSignInButton into src/components/shared/GitHubIcon.tsx (Lucide has no brand icons) and added the shadcn dialog and alert-dialog components. Known gap, carried over from the reset flow: JWT sessions issued before a password change stay valid, which would need a token-version column to fix.
