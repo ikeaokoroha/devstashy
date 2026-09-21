@@ -1,18 +1,24 @@
-# Current Feature
+# Current Feature: Three-Column Items Grid
 
-<!-- Feature name and short description -->
+Change the /items/[type] listing to show three columns on larger screens instead of two, while staying responsive.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Items list grid shows three columns on large screens
+- Stays responsive: one column on mobile, two on medium screens, three from large up
+- ItemCards keep their type-colored left border and remain readable at the narrower width (titles, descriptions and tags truncate or wrap cleanly, no overflow)
 
 ## Notes
 
-<!-- Any extra notes -->
+- The grid lives in src/components/items/ItemGrid.tsx, currently `grid gap-3 md:grid-cols-2`; the likely change is adding `lg:grid-cols-3` (or `xl:` if cards get too narrow with the sidebar open)
+- The sidebar is collapsible, so check the breakpoint with it both open and collapsed
+- ItemGrid is only used by the items list page; the dashboard's pinned and recent items sections render ItemCard separately and are out of scope
+- Layout-only change: no server actions or utilities, so no new unit tests expected
+- Uses Tailwind v4 container queries instead of viewport breakpoints: `lg:grid-cols-3` would give ~205px cards at 1024px with the sidebar open (content area ~640px), leaving ~55px for the title after the icon, gaps and date. `@xl:grid-cols-2` (36rem) and `@4xl:grid-cols-3` (56rem) keep cards at ~280px or wider. Result: 1 column on mobile, 2 on medium widths, 3 from roughly a 1150px viewport with the sidebar collapsed or ~1400px with it open
 
 ## History
 

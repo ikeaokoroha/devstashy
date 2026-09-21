@@ -15,11 +15,16 @@ export function ItemGrid({ items, emptyMessage }: ItemGridProps) {
     );
   }
 
+  // Columns follow the grid's own width rather than the viewport, since the
+  // collapsible sidebar changes how much room there is at the same screen size.
+  // Both breakpoints keep each card at least ~280px wide.
   return (
-    <div className="grid gap-3 md:grid-cols-2">
-      {items.map((item) => (
-        <ItemCard key={item.id} item={item} />
-      ))}
+    <div className="@container">
+      <div className="grid gap-3 @xl:grid-cols-2 @4xl:grid-cols-3">
+        {items.map((item) => (
+          <ItemCard key={item.id} item={item} />
+        ))}
+      </div>
     </div>
   );
 }
