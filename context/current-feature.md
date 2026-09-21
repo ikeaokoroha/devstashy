@@ -1,24 +1,18 @@
-# Current Feature: Items List View
+# Current Feature
 
-Dynamic items listing page at `/items/[type]` that displays type-filtered items.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Create dynamic route `/items/[type]` (e.g., /items/snippets, /items/notes)
-- Fetch and display items filtered by type
-- Responsive grid of ItemCard components
-- Two columns on medium and up
-- Each card has a left border colored by its item type
-- Follow existing codebase patterns
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Spec: context/features/item-list-view-spec.md
-- Sidebar type links already point to /items/[type]s (plural), so the route segment must map the plural slug back to the system type name.
+<!-- Any extra notes -->
 
 ## History
 
@@ -80,3 +74,6 @@ Added /profile with account info, usage stats and account actions. The dashboard
 
 Rate Limiting for Auth
 Rate limited the five auth entry points with @upstash/ratelimit 2.1 over @upstash/redis 1.39, all sliding window: sign in 5/15min keyed by IP+email, register 3/hour by IP, forgot password 3/hour by IP, reset password 5/15min by IP, resend verification 3/15min by IP+email. src/lib/rate-limit.ts holds the five configs in one RATE_LIMITS map, builds the Redis client and each Ratelimit lazily and caches them per name under a devstash:rl:{name} prefix, and exposes checkRateLimit returning { success, remaining, reset }. It fails open at four levels — the RATE_LIMITING flag off, missing UPSTASH_* credentials, a 1s Redis timeout, and a try/catch around the call — so a limiter outage can never lock everyone out of signing in. getClientIp prefers x-vercel-forwarded-for then x-real-ip, both of which Vercel sets itself and a client can't spoof, before falling back to the leftmost x-forwarded-for entry and then 127.0.0.1; getRequestIp wraps it with headers() for server actions. The sign-in limit lives in authorizeCredentials in src/auth.ts rather than the signInWithCredentials action, because a brute force attempt posts straight to /api/auth/callback/credentials and never touches the action; TooManyAttemptsError (a CredentialsSignin subclass in auth-errors.ts, alongside EmailNotVerifiedError) carries the window's reset timestamp back to the action, which works because @auth/core rethrows the original error instance on the raw non-redirect path. A successful sign-in calls resetUsedTokens, so the limit only holds failed attempts against the user. Forgot password is keyed by IP alone on purpose — adding the email would let anyone exhaust a victim's allowance and block their real reset — and the resend-verification check runs before any lookup so it still answers identically for registered and unknown addresses. Only /api/auth/register returns 429, with a Retry-After header and the existing { success, error } body; the other three flows are server actions reporting through ActionResult, via a shared getRateLimitError helper in src/actions/auth.ts. No client file changed: all five forms already render their error inline through FormMessage, so the spec's toast was dropped in favour of the existing pattern rather than adding a toast library for one message. RATE_LIMITING in feature-flags.ts follows REQUIRE_EMAIL_VERIFICATION — read once at startup, on unless the value is exactly "false" — set true in .env and explicitly true in .env.production, since without the explicit value a local production build would inherit a false from .env. Known gaps: @upstash/ratelimit's slidingWindow resetTokens never awaits its Redis eval (the map callback has no return), so the reset-on-success is fire-and-forget and can be dropped when a serverless function freezes, degrading to the spec's literal "5 attempts" behaviour; the reset timestamp is the end of the current fixed slot rather than a true sliding-window clear, so the message understates the wait and can tick upward if someone retries at a boundary (softening the wording to "in about N minutes" was deferred); the reset-password limit counts validation typos, not just token guesses; the Base UI defaultValue warning on the sign-in form was left as is; and since .env* is gitignored, Vercel needs RATE_LIMITING and both UPSTASH_* variables set manually with a redeploy, or production runs unprotected while looking fine. Verified with tsc, eslint and next build, plus the sign-in limit confirmed in the browser; the register, forgot, reset and resend limits are compile-checked only.
+
+Items List View
+Added /items/[type] (src/app/(app)/items/[type]/page.tsx), listing the user's items of one system type in a grid of the existing ItemCard (one column, two from md up, each keeping its type-colored left border) with a header showing the type's icon, name and item count, and a dashed empty state. getItemTypeSlug and getItemTypeNameFromSlug in src/lib/item-types.ts map the plural slug to a system type name (unknown slugs 404), and the sidebar now builds its links with getItemTypeSlug. getItemsByType in src/lib/db/items.ts reuses ITEM_CARD_SELECT, filters on isSystem so custom types can't match, and sorts pinned first then by updatedAt; the existing (userId, itemTypeId) index covers it, so no migration. The grid lives in src/components/items/ItemGrid.tsx and /items/:path* joined the proxy matcher. Like the dashboard, the page is scoped to the demo user via getCurrentUserId. Known gaps: the query has no limit or pagination, and navigating between types takes about half a second because the dynamic page isn't prefetched without a loading.tsx and runs two sequential Neon queries — a loading skeleton, the session user id and staleTimes.dynamic were discussed but deferred.
