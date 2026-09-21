@@ -1,31 +1,18 @@
-# Current Feature: Item Drawer
+# Current Feature
 
-Right-side slide-in drawer that opens when an item card is clicked. It is the item detail view; there is no separate item page.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Use the shadcn Sheet component, opening from the right
-- Clicking an ItemCard opens the drawer with that item's full data
-- Works on both the dashboard and the /items/[type] list pages
-- Action bar with Favorite (star icon, yellow when active), Pin, Copy, Edit (pencil icon) and Delete (trash icon, right-aligned), laid out as in the screenshot
-- A client wrapper component manages drawer state, since the pages are server components
-- Feels snappy: fetch on click, no page navigation
-- Card data (title, description, tags, etc.) is still fetched by the server components as before
-- Full item detail (content, collections, language, etc.) is fetched on click from an API route, `/api/items/[id]`
-- The query function lives in `src/lib/db/items.ts`, and the API route calls it after an auth check
-- The drawer shows a skeleton/loading state while fetching
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Scope is displaying the details only. The code editor and type-specific extras come later.
-- `/api/items/[id]` scopes to the demo user via `getCurrentUserId` for now, matching the dashboard and items pages (after the session auth check).
-- Only Copy (copies the item's content) works; Favorite, Pin, Edit and Delete are display only for now.
-- Visual reference: `context/screenshots/dashboard-ui-drawer.png`
-- Spec: `context/features/item-drawer-spec.md`
+<!-- Any extra notes -->
 
 ## History
 
@@ -96,3 +83,6 @@ Set up Vitest 5 for unit testing server actions and utilities only, not componen
 
 Three-Column Items Grid
 The /items/[type] grid in src/components/items/ItemGrid.tsx now goes up to three columns. It uses Tailwind v4 container queries rather than viewport breakpoints, because the collapsible sidebar changes the available width at the same screen size: a plain lg:grid-cols-3 would give ~205px cards at 1024px with the sidebar open, leaving ~55px for the title after the icon, gaps and date. The grid is wrapped in an @container and switches to two columns from 36rem (@xl) and three from 56rem (@4xl) of its own width, keeping each card at least ~280px wide — in viewport terms, three columns from roughly 1150px with the sidebar collapsed or ~1400px with it open. ItemCard itself is unchanged, and the dashboard's pinned and recent sections, which render ItemCard separately, are unaffected. Layout only, so no unit tests were added; verified with tsc, eslint, the existing Vitest suite and next build (the @container rules confirmed in the built CSS), with the breakpoints left to check in the browser.
+
+Item Drawer
+Clicking an item card on the dashboard or an /items/[type] page opens a right-side shadcn Sheet with the full item; the drawer is the item detail view, with no separate item page (an /items/[id] page would also clash with /items/[type] at the same segment). getItemDetail in src/lib/db/items.ts looks the item up with findFirst on id and userId, so another user's id finds nothing, and returns content, url, file fields, language, dates, the type, tag names and the item's collections (id and name, sorted by name). GET /api/items/[id] (src/app/api/items/[id]/route.ts) checks the session itself since the proxy doesn't cover /api, then scopes to the demo user via getCurrentUserId like the pages, returning `{ success, data, error }` with 401, 404 or 500. ItemDrawerProvider (src/components/items) wraps the page content in the (app) layout and exposes openItem through context; it aborts the previous request when another card is clicked so a slow response can't overwrite a newer one, and aborts on close. ItemCard stays a server component: OpenItemButton, a small client button absolutely positioned over the relatively positioned card, opens the drawer, and the card gained a hover background. The drawer's header (type icon, title, type and language badges) renders from the clicked card's data immediately, while a Skeleton covers the body until the detail arrives; errors show the message with a Try again button. ItemDetailBody shows description, content in a scrollable monospace block (or the link, or the file name and size), tags, collections and created/updated dates in a fixed en-US UTC format. The action bar in ItemDrawerActions has Favorite (yellow star when active), Pin, Copy, Edit and a right-aligned red Delete; only Copy works, copying the content, URL or file URL and flipping its label to "Copied" for 2s (no toast library, so the button itself confirms), and the rest are display only. Helpers in src/lib/item-detail.ts: getSafeHref only links http(s) URLs so a stored javascript: URL can't become a clickable link, plus formatFileSize, getContentLabel and getCopyText. ItemDetail, ItemDetailJson (dates as strings over JSON) and ItemDetailState live in src/types/items.ts. Tests cover getItemDetail, the route (401 without a session and no lookup, 404, 200, 500) and the helpers, bringing the suite to 30. Known gaps: the drawer isn't in the URL, so it can't be linked to, doesn't survive a refresh and isn't closed by the back button (a ?item=id param was discussed and deferred, worth revisiting when ⌘K search needs to open items); every open refetches with no client cache; content has no syntax highlighting yet; and the /api route still uses the demo user. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user.
