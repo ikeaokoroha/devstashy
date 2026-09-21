@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { signIn, signOut } from "@/auth";
 import { SIGN_IN_PATH } from "@/auth.config";
-import { EmailNotVerifiedError } from "@/lib/auth-errors";
+import { EmailNotVerifiedError, TooManyAttemptsError } from "@/lib/auth-errors";
 import {
   forgotPasswordSchema,
   resendVerificationSchema,
@@ -20,6 +20,12 @@ import {
   sendPasswordResetLink,
   type PasswordResetResult,
 } from "@/lib/password-reset";
+import {
+  checkRateLimit,
+  getRequestIp,
+  rateLimitMessage,
+  type RateLimitName,
+} from "@/lib/rate-limit";
 import type { ActionResult } from "@/types/actions";
 
 const DEFAULT_SIGN_IN_REDIRECT = "/dashboard";
@@ -35,6 +41,14 @@ interface SignInData {
 function getRedirectTo(formData: FormData) {
   const callbackUrl = formData.get("callbackUrl");
   return typeof callbackUrl === "string" && callbackUrl ? callbackUrl : DEFAULT_SIGN_IN_REDIRECT;
+}
+
+// Returns the message to show when the caller is over the limit, or null to
+// carry on. Keyed by IP alone unless an email is given.
+async function getRateLimitError(name: RateLimitName, email?: string): Promise<string | null> {
+  const ip = await getRequestIp();
+  const { success, reset } = await checkRateLimit(name, email ? `${ip}:${email}` : ip);
+  return success ? null : rateLimitMessage(reset);
 }
 
 // The email is echoed back so the form can refill it after React resets it.
@@ -59,6 +73,10 @@ export async function signInWithCredentials(
         data: { email, emailNotVerified: true },
         error: "Verify your email before signing in. Check your inbox for the link.",
       };
+    }
+    // Thrown by authorize, which is where the sign-in limit is enforced.
+    if (error instanceof TooManyAttemptsError) {
+      return { success: false, data: { email }, error: rateLimitMessage(error.reset) };
     }
     if (error instanceof AuthError) {
       const message =
@@ -87,6 +105,13 @@ export async function resendVerificationEmail(
     return { success: false, error: "Enter a valid email" };
   }
 
+  // Applied to every address, registered or not, so the limit can't be used to
+  // tell the two apart.
+  const rateLimitError = await getRateLimitError("resendVerification", parsed.data.email);
+  if (rateLimitError) {
+    return { success: false, error: rateLimitError };
+  }
+
   try {
     await resendVerificationLink(parsed.data.email);
     return { success: true };
@@ -105,6 +130,13 @@ export async function requestPasswordReset(
   const parsed = forgotPasswordSchema.safeParse({ email: formData.get("email") });
   if (!parsed.success) {
     return { success: false, error: "Enter a valid email" };
+  }
+
+  // By IP only: keying on the email too would let someone exhaust a victim's
+  // allowance and block their real reset request.
+  const rateLimitError = await getRateLimitError("forgotPassword");
+  if (rateLimitError) {
+    return { success: false, error: rateLimitError };
   }
 
   try {
@@ -126,6 +158,13 @@ export async function resetPassword(
   _previous: ActionResult<ResetPasswordData> | null,
   formData: FormData,
 ): Promise<ActionResult<ResetPasswordData>> {
+  // Ahead of validation: the limit is here to stop token guessing, and a guessed
+  // token is a well-formed one.
+  const rateLimitError = await getRateLimitError("resetPassword");
+  if (rateLimitError) {
+    return { success: false, error: rateLimitError };
+  }
+
   const parsed = resetPasswordSchema.safeParse({
     email: formData.get("email"),
     token: formData.get("token"),

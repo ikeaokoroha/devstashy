@@ -1,18 +1,38 @@
-# Current Feature
+# Current Feature: Rate Limiting for Auth
 
-<!-- Feature name and short description -->
+Rate limit the authentication flows to prevent brute force attacks, credential stuffing, and abuse of the email-sending paths.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Add `src/lib/rate-limit.ts`: an Upstash Redis client with `@upstash/ratelimit`, sliding window algorithm, returning `{ success, remaining, reset }`.
+- Extract the client IP from `x-forwarded-for` (Vercel) or the request, and combine IP + email where the table calls for it.
+- Apply limits to each auth flow:
+  - Login (credentials sign-in) — 5 attempts / 15 min, keyed by IP + email
+  - Register — 3 / 1 hour, keyed by IP
+  - Forgot password — 3 / 1 hour, keyed by IP
+  - Reset password — 5 / 15 min, keyed by IP
+  - Resend verification — 3 / 15 min, keyed by IP + email
+- Return 429 from the API routes with `{ error: "Too many attempts. Please try again in X minutes." }` and a `Retry-After` header.
+- Show a user-friendly message on the frontend when a limit is hit — inline via the existing `FormMessage`, not a toast (decided at start; no toast library is installed and every auth form already reports errors inline).
+- Fail open: if Upstash is unavailable, allow the request through.
+- Add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to the environment (both were already set in `.env` and `.env.production`).
+- Add a `RATE_LIMITING` flag so limiting can be turned off locally, where there's no forwarded IP and every request shares one bucket.
 
 ## Notes
 
-<!-- Any extra notes -->
+- Free tier is 10k requests/day, enough for auth limiting.
+- The spec's endpoint table names URLs, but in this codebase only `/api/auth/register` and `/api/auth/verify-email` are real routes. Forgot password, reset password and resend verification are server actions in `src/actions/auth.ts`, so they need the limit applied inside the action and the message returned through the existing `ActionResult` pattern rather than a 429 — the `Retry-After` header and JSON body only apply to the register route.
+- Login goes through NextAuth's credentials provider, so limiting it likely means checking inside `authorizeCredentials` in `src/auth.ts` (or `signInWithCredentials` before calling `signIn`); the spec flags this as the tricky one.
+- Server actions can't read headers the way a route handler does — use `headers()` from `next/headers` (async in Next.js 16) to get the IP.
+- The forgot-password and resend-verification flows already answer identically for every email so they don't leak which addresses are registered; the rate-limit message must not break that.
+- Both email flows already have a 60s per-address cooldown; the rate limit sits on top of it, keyed by IP.
+- Spec: @context/features/rate-limiting-spec.md
+- `RATE_LIMITING` follows `REQUIRE_EMAIL_VERIFICATION`: read once at startup, on unless the value is exactly "false", so a typo can't leave production unprotected. Set to `false` in `.env` and explicitly `true` in `.env.production` — without the explicit value a local production build would inherit `false` from `.env`. **Vercel needs `RATE_LIMITING` set (or left unset, which means on), and a redeploy, since the value is read at startup.**
+- Deferred per spec: rate limiting as proxy middleware, for a cleaner implementation later.
 
 ## History
 
