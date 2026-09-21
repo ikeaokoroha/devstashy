@@ -66,6 +66,20 @@ export async function getPinnedItems(
   return items.map(toItemWithType);
 }
 
+// All of the user's items of one system type, pinned first, then most recently updated.
+export async function getItemsByType(
+  userId: string,
+  typeName: string
+): Promise<ItemWithType[]> {
+  const items = await prisma.item.findMany({
+    where: { userId, itemType: { name: typeName, isSystem: true } },
+    orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
+    select: ITEM_CARD_SELECT,
+  });
+
+  return items.map(toItemWithType);
+}
+
 export async function getRecentItems(
   userId: string,
   limit: number

@@ -4,7 +4,7 @@ import {
   SidebarMenuBadge,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { getItemTypeStyle, PRO_ITEM_TYPES } from "@/lib/item-types";
+import { getItemTypeSlug, getItemTypeStyle, PRO_ITEM_TYPES } from "@/lib/item-types";
 import type { ItemTypeWithCount } from "@/types/dashboard";
 import { SidebarCollapsibleGroup } from "./SidebarCollapsibleGroup";
 import { SidebarNavLink } from "./SidebarNavLink";
@@ -22,7 +22,7 @@ export function SidebarTypesNav({ itemTypes }: SidebarTypesNavProps) {
 
           return (
             <SidebarMenuItem key={type.id}>
-              <SidebarNavLink href={`/items/${type.name}s`}>
+              <SidebarNavLink href={`/items/${getItemTypeSlug(type.name)}`}>
                 <Icon className={textClass} />
                 <span className="capitalize">{type.name}s</span>
                 {PRO_ITEM_TYPES.includes(type.name) && (

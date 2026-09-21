@@ -93,6 +93,16 @@ const ITEM_TYPE_STYLES: Record<string, ItemTypeStyle> = {
   },
 };
 
+// URL slug for a type's list page, e.g. "snippet" → "snippets" in /items/snippets.
+export function getItemTypeSlug(typeName: string): string {
+  return `${typeName}s`;
+}
+
+// The system type a list page slug refers to, or null for anything else.
+export function getItemTypeNameFromSlug(slug: string): string | null {
+  return SYSTEM_ITEM_TYPE_ORDER.find((name) => getItemTypeSlug(name) === slug) ?? null;
+}
+
 export function getItemTypeStyle(typeName: string): ItemTypeStyle {
   return ITEM_TYPE_STYLES[typeName] ?? DEFAULT_ITEM_TYPE_STYLE;
 }
