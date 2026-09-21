@@ -19,13 +19,19 @@ npm run build                    # production build (Turbopack)
 npm start                        # serve the production build
 npm run lint                     # eslint (flat config); `next lint` no longer exists
 npx next typegen && npx tsc --noEmit   # typecheck
+npm test                         # vitest in watch mode
+npm run test:run                 # vitest, single run
+npx vitest run src/lib/item-types.test.ts   # single file (-t "name" for one test)
 ```
 
 Typechecking requires `next typegen` first: `next-env.d.ts` and the generated route
 types are gitignored, so a fresh clone has none until typegen, `next dev`, or
 `next build` writes them. `next build` does **not** run ESLint — lint is a separate step.
 
-No test framework is configured yet.
+Tests use Vitest in a Node environment and cover server actions and utilities only,
+not components; they're colocated as `*.test.ts` and mock Prisma, auth and other
+external services (see the Testing section of coding-standards.md). `next build`
+typechecks test files too, since tsconfig includes every `.ts` file.
 
 ## Next.js 16 specifics
 

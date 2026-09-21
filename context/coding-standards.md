@@ -89,6 +89,14 @@ Example v4 configuration:
 - Return `{ success, data, error }` pattern from actions
 - Display user-friendly error messages via toast
 
+## Testing
+
+- Vitest, in a Node environment (`vitest.config.mts`)
+- Unit test server actions (`src/actions/`) and utilities (`src/lib/`) only — no component tests
+- Colocate tests as `name.test.ts` next to the file under test; `.tsx` tests are not picked up
+- Mock the boundaries with `vi.mock` (`@/lib/prisma`, `@/auth`, `@/lib/session`, `next/headers`, email, Redis) — tests never hit Neon, Resend or Upstash
+- Cover the `{ success, data, error }` paths: validation failure, the happy path, and the caught error
+
 ## Code Quality
 
 - No commented-out code unless specified

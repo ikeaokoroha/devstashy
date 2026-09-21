@@ -1,18 +1,24 @@
 # Current Feature
 
-<!-- Feature name and short description -->
+Vitest Unit Testing Setup — unit tests for server actions and utilities.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Set up Vitest for unit testing server actions and utilities (no component tests)
+- Add `test` and `test:run` scripts
+- Add starter tests that set the patterns: a pure utility, a Zod schema module, and a server action with mocked boundaries
+- Update the workflow and docs to include unit tests
 
 ## Notes
 
-<!-- Any extra notes -->
+- Node environment, no jsdom or React plugin; `@/*` resolves through Vite 8's native `resolve.tsconfigPaths`, so no vite-tsconfig-paths dependency
+- Only `src/**/*.test.ts` is collected, so `.tsx` component tests can't slip in
+- Vitest 5 requires `@types/node` 22+, so it was bumped from ^20 to ^22 (local Node is 24)
+- Server action tests mock `@/lib/prisma`, `@/auth`, `@/lib/session` and `@/lib/password`; nothing touches Neon or NextAuth
 
 ## History
 
