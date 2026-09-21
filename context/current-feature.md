@@ -1,38 +1,18 @@
-# Current Feature: Rate Limiting for Auth
+# Current Feature
 
-Rate limit the authentication flows to prevent brute force attacks, credential stuffing, and abuse of the email-sending paths.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Add `src/lib/rate-limit.ts`: an Upstash Redis client with `@upstash/ratelimit`, sliding window algorithm, returning `{ success, remaining, reset }`.
-- Extract the client IP from `x-forwarded-for` (Vercel) or the request, and combine IP + email where the table calls for it.
-- Apply limits to each auth flow:
-  - Login (credentials sign-in) — 5 attempts / 15 min, keyed by IP + email
-  - Register — 3 / 1 hour, keyed by IP
-  - Forgot password — 3 / 1 hour, keyed by IP
-  - Reset password — 5 / 15 min, keyed by IP
-  - Resend verification — 3 / 15 min, keyed by IP + email
-- Return 429 from the API routes with `{ error: "Too many attempts. Please try again in X minutes." }` and a `Retry-After` header.
-- Show a user-friendly message on the frontend when a limit is hit — inline via the existing `FormMessage`, not a toast (decided at start; no toast library is installed and every auth form already reports errors inline).
-- Fail open: if Upstash is unavailable, allow the request through.
-- Add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to the environment (both were already set in `.env` and `.env.production`).
-- Add a `RATE_LIMITING` flag so limiting can be turned off locally, where there's no forwarded IP and every request shares one bucket.
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Free tier is 10k requests/day, enough for auth limiting.
-- The spec's endpoint table names URLs, but in this codebase only `/api/auth/register` and `/api/auth/verify-email` are real routes. Forgot password, reset password and resend verification are server actions in `src/actions/auth.ts`, so they need the limit applied inside the action and the message returned through the existing `ActionResult` pattern rather than a 429 — the `Retry-After` header and JSON body only apply to the register route.
-- Login goes through NextAuth's credentials provider, so limiting it likely means checking inside `authorizeCredentials` in `src/auth.ts` (or `signInWithCredentials` before calling `signIn`); the spec flags this as the tricky one.
-- Server actions can't read headers the way a route handler does — use `headers()` from `next/headers` (async in Next.js 16) to get the IP.
-- The forgot-password and resend-verification flows already answer identically for every email so they don't leak which addresses are registered; the rate-limit message must not break that.
-- Both email flows already have a 60s per-address cooldown; the rate limit sits on top of it, keyed by IP.
-- Spec: @context/features/rate-limiting-spec.md
-- `RATE_LIMITING` follows `REQUIRE_EMAIL_VERIFICATION`: read once at startup, on unless the value is exactly "false", so a typo can't leave production unprotected. Set to `false` in `.env` and explicitly `true` in `.env.production` — without the explicit value a local production build would inherit `false` from `.env`. **Vercel needs `RATE_LIMITING` set (or left unset, which means on), and a redeploy, since the value is read at startup.**
-- Deferred per spec: rate limiting as proxy middleware, for a cleaner implementation later.
+<!-- Any extra notes -->
 
 ## History
 
@@ -91,3 +71,6 @@ Email/password users can reset their password from a "Forgot password?" link nex
 
 Profile Page
 Added /profile with account info, usage stats and account actions. The dashboard shell moved into an (app) route group (src/app/(app)/layout.tsx, renamed AppLayout and typed LayoutProps<"/">) so the profile page shares the sidebar and top bar; /dashboard and /profile URLs are unchanged, and the proxy matcher gained /profile/:path*. The page is scoped to the signed-in user through a new requireUserId in src/lib/session.ts (auth() plus React cache, redirecting to sign-in when there's no session) rather than the demo user getCurrentUserId still stands in for, so the account actions can never hit the wrong row — the dashboard keeps using the demo user for now, which means a non-demo account sees zero stats on /profile. getProfileUser in src/lib/db/users.ts returns name, email, image, createdAt plus hasPassword and the linked OAuth providers; ProfileHeader shows them with the existing UserAvatar, a fixed en-US join date so the server and client render the same string, and a badge per provider. Stats reuse getItemStats, getCollectionStats and getSystemItemTypes with no new queries: the existing StatsCards renders the totals and ItemTypeBreakdown shows all 7 system types in spec order with their colors and icons, including the zeros. AccountActions renders ChangePasswordDialog only when hasPassword, and changePassword in src/actions/profile.ts re-checks server side, verifies the current password with bcrypt and rejects OAuth-only accounts; the dialog remounts its form on close since useActionState has no reset. DeleteAccountDialog requires the word DELETE typed in (DELETE_CONFIRMATION lives in src/lib/profile.ts because a "use server" module can only export async functions) and deleteAccount removes the user — items, collections, custom types, accounts and sessions all cascade from User — then signs out to /sign-in?deleted=1, where a new banner confirms it. changePasswordSchema in auth-validation.ts reuses registerSchema's password rules. Also extracted the inlined GitHub mark from GitHubSignInButton into src/components/shared/GitHubIcon.tsx (Lucide has no brand icons) and added the shadcn dialog and alert-dialog components. Known gap, carried over from the reset flow: JWT sessions issued before a password change stay valid, which would need a token-version column to fix.
+
+Rate Limiting for Auth
+Rate limited the five auth entry points with @upstash/ratelimit 2.1 over @upstash/redis 1.39, all sliding window: sign in 5/15min keyed by IP+email, register 3/hour by IP, forgot password 3/hour by IP, reset password 5/15min by IP, resend verification 3/15min by IP+email. src/lib/rate-limit.ts holds the five configs in one RATE_LIMITS map, builds the Redis client and each Ratelimit lazily and caches them per name under a devstash:rl:{name} prefix, and exposes checkRateLimit returning { success, remaining, reset }. It fails open at four levels — the RATE_LIMITING flag off, missing UPSTASH_* credentials, a 1s Redis timeout, and a try/catch around the call — so a limiter outage can never lock everyone out of signing in. getClientIp prefers x-vercel-forwarded-for then x-real-ip, both of which Vercel sets itself and a client can't spoof, before falling back to the leftmost x-forwarded-for entry and then 127.0.0.1; getRequestIp wraps it with headers() for server actions. The sign-in limit lives in authorizeCredentials in src/auth.ts rather than the signInWithCredentials action, because a brute force attempt posts straight to /api/auth/callback/credentials and never touches the action; TooManyAttemptsError (a CredentialsSignin subclass in auth-errors.ts, alongside EmailNotVerifiedError) carries the window's reset timestamp back to the action, which works because @auth/core rethrows the original error instance on the raw non-redirect path. A successful sign-in calls resetUsedTokens, so the limit only holds failed attempts against the user. Forgot password is keyed by IP alone on purpose — adding the email would let anyone exhaust a victim's allowance and block their real reset — and the resend-verification check runs before any lookup so it still answers identically for registered and unknown addresses. Only /api/auth/register returns 429, with a Retry-After header and the existing { success, error } body; the other three flows are server actions reporting through ActionResult, via a shared getRateLimitError helper in src/actions/auth.ts. No client file changed: all five forms already render their error inline through FormMessage, so the spec's toast was dropped in favour of the existing pattern rather than adding a toast library for one message. RATE_LIMITING in feature-flags.ts follows REQUIRE_EMAIL_VERIFICATION — read once at startup, on unless the value is exactly "false" — set true in .env and explicitly true in .env.production, since without the explicit value a local production build would inherit a false from .env. Known gaps: @upstash/ratelimit's slidingWindow resetTokens never awaits its Redis eval (the map callback has no return), so the reset-on-success is fire-and-forget and can be dropped when a serverless function freezes, degrading to the spec's literal "5 attempts" behaviour; the reset timestamp is the end of the current fixed slot rather than a true sliding-window clear, so the message understates the wait and can tick upward if someone retries at a boundary (softening the wording to "in about N minutes" was deferred); the reset-password limit counts validation typos, not just token guesses; the Base UI defaultValue warning on the sign-in form was left as is; and since .env* is gitignored, Vercel needs RATE_LIMITING and both UPSTASH_* variables set manually with a redeploy, or production runs unprotected while looking fine. Verified with tsc, eslint and next build, plus the sign-in limit confirmed in the browser; the register, forgot, reset and resend limits are compile-checked only.
