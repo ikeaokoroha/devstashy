@@ -2,6 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { SYSTEM_ITEM_TYPE_ORDER } from "@/lib/item-types";
 import { prisma } from "@/lib/prisma";
 import type { ItemStats, ItemTypeWithCount, ItemWithType } from "@/types/dashboard";
+import type { ItemDetail } from "@/types/items";
 
 // Only the fields the dashboard item cards render.
 const ITEM_CARD_SELECT = {
@@ -78,6 +79,51 @@ export async function getItemsByType(
   });
 
   return items.map(toItemWithType);
+}
+
+const ITEM_DETAIL_SELECT = {
+  id: true,
+  title: true,
+  description: true,
+  contentType: true,
+  content: true,
+  url: true,
+  fileUrl: true,
+  fileName: true,
+  fileSize: true,
+  language: true,
+  isFavorite: true,
+  isPinned: true,
+  createdAt: true,
+  updatedAt: true,
+  itemType: { select: { id: true, name: true } },
+  tags: { select: { name: true }, orderBy: { name: "asc" } },
+  collections: {
+    select: { collection: { select: { id: true, name: true } } },
+    orderBy: { collection: { name: "asc" } },
+  },
+} satisfies Prisma.ItemSelect;
+
+// One item with everything the drawer shows, or null when the user has no item with that id.
+export async function getItemDetail(
+  userId: string,
+  itemId: string
+): Promise<ItemDetail | null> {
+  const item = await prisma.item.findFirst({
+    where: { id: itemId, userId },
+    select: ITEM_DETAIL_SELECT,
+  });
+
+  if (!item) {
+    return null;
+  }
+
+  const { tags, collections, ...detail } = item;
+  return {
+    ...detail,
+    tags: tags.map((tag) => tag.name),
+    collections: collections.map(({ collection }) => collection),
+  };
 }
 
 export async function getRecentItems(

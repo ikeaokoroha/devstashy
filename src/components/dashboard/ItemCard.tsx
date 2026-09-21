@@ -2,6 +2,7 @@ import { Pin, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { OpenItemButton } from "@/components/items/OpenItemButton";
 import { getItemTypeStyle } from "@/lib/item-types";
 import type { ItemWithType } from "@/types/dashboard";
 
@@ -22,7 +23,13 @@ export function ItemCard({ item }: ItemCardProps) {
   );
 
   return (
-    <Card className={cn("flex-row items-start gap-4 border-l-2 px-5", borderClass)}>
+    <Card
+      className={cn(
+        "relative flex-row items-start gap-4 border-l-2 px-5 transition-colors hover:bg-muted/40",
+        borderClass
+      )}
+    >
+      <OpenItemButton item={item} />
       <div
         className={cn(
           "flex size-10 shrink-0 items-center justify-center rounded-lg",
