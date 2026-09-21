@@ -1,24 +1,18 @@
-# Current Feature: Three-Column Items Grid
+# Current Feature
 
-Change the /items/[type] listing to show three columns on larger screens instead of two, while staying responsive.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Items list grid shows three columns on large screens
-- Stays responsive: one column on mobile, two on medium screens, three from large up
-- ItemCards keep their type-colored left border and remain readable at the narrower width (titles, descriptions and tags truncate or wrap cleanly, no overflow)
+<!-- Goals and requirements -->
 
 ## Notes
 
-- The grid lives in src/components/items/ItemGrid.tsx, currently `grid gap-3 md:grid-cols-2`; the likely change is adding `lg:grid-cols-3` (or `xl:` if cards get too narrow with the sidebar open)
-- The sidebar is collapsible, so check the breakpoint with it both open and collapsed
-- ItemGrid is only used by the items list page; the dashboard's pinned and recent items sections render ItemCard separately and are out of scope
-- Layout-only change: no server actions or utilities, so no new unit tests expected
-- Uses Tailwind v4 container queries instead of viewport breakpoints: `lg:grid-cols-3` would give ~205px cards at 1024px with the sidebar open (content area ~640px), leaving ~55px for the title after the icon, gaps and date. `@xl:grid-cols-2` (36rem) and `@4xl:grid-cols-3` (56rem) keep cards at ~280px or wider. Result: 1 column on mobile, 2 on medium widths, 3 from roughly a 1150px viewport with the sidebar collapsed or ~1400px with it open
+<!-- Any extra notes -->
 
 ## History
 
@@ -86,3 +80,6 @@ Added /items/[type] (src/app/(app)/items/[type]/page.tsx), listing the user's it
 
 Vitest Unit Testing Setup
 Set up Vitest 5 for unit testing server actions and utilities only, not components. vitest.config.mts runs in a Node environment with no jsdom or React plugin, collects only src/**/*.test.ts (so .tsx component tests can't slip in), resolves the @/* alias through Vite 8's native resolve.tsconfigPaths (no vite-tsconfig-paths dependency), and clears mocks and restores spies between tests. Added test (watch) and test:run scripts, and bumped @types/node from ^20 to ^22, which Vitest 5 requires. Starter tests set the patterns: src/lib/item-types.test.ts (slug round-trips and the fallback style), src/lib/auth-validation.test.ts (email normalization, password length and mismatch) and src/actions/profile.test.ts (changePassword with @/auth, @/lib/session, @/lib/password and @/lib/prisma mocked, covering validation failure, OAuth-only accounts, a wrong current password, success and a database error) — 15 tests, none touching Neon or NextAuth. The Test step in ai-interaction.md now requires unit tests for new actions and utilities and a passing npm run test:run before committing; coding-standards.md gained a Testing section; CLAUDE.md lists the test commands and notes that next build typechecks test files too; and the feature skill gained a test action.
+
+Three-Column Items Grid
+The /items/[type] grid in src/components/items/ItemGrid.tsx now goes up to three columns. It uses Tailwind v4 container queries rather than viewport breakpoints, because the collapsible sidebar changes the available width at the same screen size: a plain lg:grid-cols-3 would give ~205px cards at 1024px with the sidebar open, leaving ~55px for the title after the icon, gaps and date. The grid is wrapped in an @container and switches to two columns from 36rem (@xl) and three from 56rem (@4xl) of its own width, keeping each card at least ~280px wide — in viewport terms, three columns from roughly 1150px with the sidebar collapsed or ~1400px with it open. ItemCard itself is unchanged, and the dashboard's pinned and recent sections, which render ItemCard separately, are unaffected. Layout only, so no unit tests were added; verified with tsc, eslint, the existing Vitest suite and next build (the @container rules confirmed in the built CSS), with the breakpoints left to check in the browser.
