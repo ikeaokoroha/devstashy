@@ -1,24 +1,18 @@
 # Current Feature
 
-Vitest Unit Testing Setup — unit tests for server actions and utilities.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Set up Vitest for unit testing server actions and utilities (no component tests)
-- Add `test` and `test:run` scripts
-- Add starter tests that set the patterns: a pure utility, a Zod schema module, and a server action with mocked boundaries
-- Update the workflow and docs to include unit tests
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Node environment, no jsdom or React plugin; `@/*` resolves through Vite 8's native `resolve.tsconfigPaths`, so no vite-tsconfig-paths dependency
-- Only `src/**/*.test.ts` is collected, so `.tsx` component tests can't slip in
-- Vitest 5 requires `@types/node` 22+, so it was bumped from ^20 to ^22 (local Node is 24)
-- Server action tests mock `@/lib/prisma`, `@/auth`, `@/lib/session` and `@/lib/password`; nothing touches Neon or NextAuth
+<!-- Any extra notes -->
 
 ## History
 
@@ -83,3 +77,6 @@ Rate limited the five auth entry points with @upstash/ratelimit 2.1 over @upstas
 
 Items List View
 Added /items/[type] (src/app/(app)/items/[type]/page.tsx), listing the user's items of one system type in a grid of the existing ItemCard (one column, two from md up, each keeping its type-colored left border) with a header showing the type's icon, name and item count, and a dashed empty state. getItemTypeSlug and getItemTypeNameFromSlug in src/lib/item-types.ts map the plural slug to a system type name (unknown slugs 404), and the sidebar now builds its links with getItemTypeSlug. getItemsByType in src/lib/db/items.ts reuses ITEM_CARD_SELECT, filters on isSystem so custom types can't match, and sorts pinned first then by updatedAt; the existing (userId, itemTypeId) index covers it, so no migration. The grid lives in src/components/items/ItemGrid.tsx and /items/:path* joined the proxy matcher. Like the dashboard, the page is scoped to the demo user via getCurrentUserId. Known gaps: the query has no limit or pagination, and navigating between types takes about half a second because the dynamic page isn't prefetched without a loading.tsx and runs two sequential Neon queries — a loading skeleton, the session user id and staleTimes.dynamic were discussed but deferred.
+
+Vitest Unit Testing Setup
+Set up Vitest 5 for unit testing server actions and utilities only, not components. vitest.config.mts runs in a Node environment with no jsdom or React plugin, collects only src/**/*.test.ts (so .tsx component tests can't slip in), resolves the @/* alias through Vite 8's native resolve.tsconfigPaths (no vite-tsconfig-paths dependency), and clears mocks and restores spies between tests. Added test (watch) and test:run scripts, and bumped @types/node from ^20 to ^22, which Vitest 5 requires. Starter tests set the patterns: src/lib/item-types.test.ts (slug round-trips and the fallback style), src/lib/auth-validation.test.ts (email normalization, password length and mismatch) and src/actions/profile.test.ts (changePassword with @/auth, @/lib/session, @/lib/password and @/lib/prisma mocked, covering validation failure, OAuth-only accounts, a wrong current password, success and a database error) — 15 tests, none touching Neon or NextAuth. The Test step in ai-interaction.md now requires unit tests for new actions and utilities and a passing npm run test:run before committing; coding-standards.md gained a Testing section; CLAUDE.md lists the test commands and notes that next build typechecks test files too; and the feature skill gained a test action.
