@@ -1,30 +1,18 @@
-# Current Feature: Item Create
+# Current Feature
 
-Add new items via a modal dialog that opens from the "New Item" button in the top bar.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- "New Item" button in the top bar opens a shadcn Dialog
-- Type selector for snippet, prompt, command, note and link
-- Fields shown based on the selected type:
-  - All types: title (required), description, tags
-  - snippet/command: content, language
-  - prompt/note: content
-  - link: URL (required)
-- `createItem` server action with Zod validation
-- `createItem` query function in `src/lib/db/items.ts`
-- On success: toast, close the modal and refresh
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Spec: context/features/item-create-spec.md
-- file and image types are excluded (Pro-only, need uploads)
-- Reuse what edit mode built where it fits: updateItemSchema rules, parseTags, getEditableFields in src/lib/item-validation.ts, the connectOrCreate tag pattern, the sonner Toaster and the updateItem action's `{ success, data, error }` shape with data.fieldErrors
-- Scope writes to the session user via requireUserId
+<!-- Any extra notes -->
 
 ## History
 
@@ -107,3 +95,6 @@ The item drawer's Edit button, enabled once the full item has loaded, switches t
 
 Delete Items
 The item drawer's red Delete button now works. It opens a shadcn AlertDialog (src/components/items/DeleteItemDialog.tsx) titled with the item's name, saying the delete also removes it from its collections and can't be undone, with Cancel and a destructive Delete. ItemDrawerActions renders the dialog in place of the old display-only button, and ItemDrawer passes the item id and title from the clicked card, so Delete works before the full item has loaded. The dialog is controlled and runs the action in a transition: while it runs, both buttons are disabled, the confirm reads "Deleting...", and Escape or an outside click can't dismiss it. On success a sonner "Item deleted" toast shows, the dialog closes, the drawer closes through the provider's existing onOpenChange (which also aborts any in-flight detail fetch), and router.refresh() updates the cards and sidebar counts; on failure an error toast shows and the dialog and drawer stay open. The deleteItem server action in src/actions/items.ts follows updateItem: requireUserId, the shared itemIdSchema, "Item not found." when nothing was deleted and a generic error in try/catch. The deleteItem query in src/lib/db/items.ts uses deleteMany on id and userId, since there's no unique (id, userId) for delete, so the ownership check and delete are one statement and another user's id deletes nothing; it returns whether a row was removed. ItemCollection rows and the implicit tag links cascade, so no migration was needed. Tests cover the action (empty id, not found, success, database error) and the query (scoped where clause, true/false from the count), bringing the suite to 56. Known gaps: deleting an item that was already deleted elsewhere shows "Item not found." and leaves the stale drawer open rather than closing it, and orphaned tags are left in place as with edits. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user.
+
+Item Create
+The top bar's New Item button now opens a shadcn Dialog (src/components/items/NewItemDialog.tsx, a client island inside the server TopBar) for creating snippets, prompts, commands, notes and links; file and image are left out until uploads exist. A type picker of toggle buttons (a radiogroup, three per row on phones and five from sm up) shows each type's colored icon, and the selected one takes the type's color for its border, tint and label — built as plain buttons because the outline Button's dark-mode bg and border classes overrode the tint and made the selection invisible; labels are 12px with 14px icons so "Command" fits the ~100px buttons. Fields follow getEditableFields: title, description and comma-separated tags for all, content for snippet/prompt/command/note, language for snippet/command and a required URL for link; values typed into a hidden field are kept across type switches but not sent. The form lives in a child that unmounts on close, so each open starts blank; Create is disabled while the title (or a link's URL) is blank or a save is running, and Escape or an outside click can't close the dialog mid-save. On success a sonner "Item created" toast shows, the dialog closes and router.refresh() updates the cards and sidebar counts; errors show a toast plus per-field messages. createItemSchema in src/lib/item-validation.ts extends updateItemSchema with a type enum over CREATABLE_ITEM_TYPES and a superRefine requiring the URL for links. The createItem action in src/actions/items.ts uses requireUserId, returns the new id or data.fieldErrors, "That item type isn't available." when the query finds no type, and a generic error in try/catch; the field-error mapping moved into a shared fieldErrorResult helper that updateItem now uses too. The createItem query in src/lib/db/items.ts looks the system type up by name, sets contentType to URL for links and TEXT otherwise, writes only the fields the type uses and connects-or-creates tags by name in the same create. TextareaField moved out of ItemEditForm into its own file for both forms. Tests cover the schema (allowed and rejected types, link URL required, shared rules), the query (missing type, user and type connects with tags, per-type fields, link content type) and the action (validation failure, missing type, success, database error), bringing the suite to 69. Known gaps: the type radiogroup has no arrow-key navigation, field errors stay visible until the next submit, a link with both title and URL blank only reports the title (Zod skips the refine while another field fails, and the disabled Create button prevents it anyway), and the tag case-normalisation and P2002 race gaps from edit mode apply here too. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user.
