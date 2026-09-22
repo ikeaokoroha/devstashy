@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { SYSTEM_ITEM_TYPE_ORDER } from "@/lib/item-types";
+import { getEditableFields, type UpdateItemData } from "@/lib/item-validation";
 import { prisma } from "@/lib/prisma";
 import type { ItemStats, ItemTypeWithCount, ItemWithType } from "@/types/dashboard";
 import type { ItemDetail } from "@/types/items";
@@ -104,6 +105,16 @@ const ITEM_DETAIL_SELECT = {
   },
 } satisfies Prisma.ItemSelect;
 
+type ItemDetailRow = Prisma.ItemGetPayload<{ select: typeof ITEM_DETAIL_SELECT }>;
+
+function toItemDetail({ tags, collections, ...detail }: ItemDetailRow): ItemDetail {
+  return {
+    ...detail,
+    tags: tags.map((tag) => tag.name),
+    collections: collections.map(({ collection }) => collection),
+  };
+}
+
 // One item with everything the drawer shows, or null when the user has no item with that id.
 export async function getItemDetail(
   userId: string,
@@ -114,16 +125,54 @@ export async function getItemDetail(
     select: ITEM_DETAIL_SELECT,
   });
 
-  if (!item) {
+  return item ? toItemDetail(item) : null;
+}
+
+// Saves the drawer's edit form and returns the updated item, or null when the
+// user has no item with that id. Fields the item's type doesn't use are left alone.
+export async function updateItem(
+  userId: string,
+  itemId: string,
+  data: UpdateItemData
+): Promise<ItemDetail | null> {
+  const existing = await prisma.item.findFirst({
+    where: { id: itemId, userId },
+    select: { itemType: { select: { name: true } } },
+  });
+  if (!existing) {
     return null;
   }
 
-  const { tags, collections, ...detail } = item;
-  return {
-    ...detail,
-    tags: tags.map((tag) => tag.name),
-    collections: collections.map(({ collection }) => collection),
-  };
+  const editable = getEditableFields(existing.itemType.name);
+  const where = { id: itemId, userId };
+
+  // Two writes in one transaction so the tags are cleared before the new ones
+  // are connected; Tag names are unique, so existing tags are reused.
+  const [, item] = await prisma.$transaction([
+    prisma.item.update({
+      where,
+      data: {
+        title: data.title,
+        description: data.description,
+        ...(editable.content && { content: data.content }),
+        ...(editable.language && { language: data.language }),
+        ...(editable.url && { url: data.url }),
+        tags: { set: [] },
+      },
+      select: { id: true },
+    }),
+    prisma.item.update({
+      where,
+      data: {
+        tags: {
+          connectOrCreate: data.tags.map((name) => ({ where: { name }, create: { name } })),
+        },
+      },
+      select: ITEM_DETAIL_SELECT,
+    }),
+  ]);
+
+  return toItemDetail(item);
 }
 
 export async function getRecentItems(

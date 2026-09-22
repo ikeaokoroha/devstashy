@@ -98,6 +98,15 @@ export function ItemDetailBody({ item }: { item: ItemDetailJson }) {
         </Section>
       )}
 
+      <ItemMetadata item={item} />
+    </div>
+  );
+}
+
+// Collections and dates: read-only in both view and edit mode.
+export function ItemMetadata({ item }: { item: Pick<ItemDetailJson, "collections" | "createdAt" | "updatedAt"> }) {
+  return (
+    <>
       {item.collections.length > 0 && (
         <Section title="Collections" icon={FolderOpen}>
           <div className="flex flex-wrap gap-1.5">
@@ -118,7 +127,7 @@ export function ItemDetailBody({ item }: { item: ItemDetailJson }) {
           <dd className="text-right">{DATE_FORMATTER.format(new Date(item.updatedAt))}</dd>
         </dl>
       </Section>
-    </div>
+    </>
   );
 }
 

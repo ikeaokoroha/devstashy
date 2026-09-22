@@ -1,18 +1,38 @@
-# Current Feature
+# Current Feature: Item Drawer — Edit Mode
 
-<!-- Feature name and short description -->
+Clicking Edit (pencil) in the item drawer's action bar switches the open drawer from view mode to edit mode inline; fields become editable inputs.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Edit button toggles the drawer into edit mode; the action bar is replaced with Save and Cancel
+- Cancel discards changes and returns to view mode
+- Save persists via a server action, returns to view mode and refreshes the drawer with the returned data
+- Toast notification on save success or error
+- Editable for all types: Title (text input, required), Description (textarea, optional), Tags (comma-separated input converted to a tag array on save)
+- Type-specific fields, shown only for the relevant type: Content (textarea) for snippet, prompt, command, note; Language (text input) for snippet, command; URL (text input) for link
+- Display only in edit mode: item type, collections (managed separately later), created/updated dates
+- Zod schema for the update payload, validated in the server action before the database:
+  - `title` — non-empty trimmed string
+  - `description`, `content`, `language` — string or null, optional
+  - `url` — valid URL string or null, optional
+  - `tags` — array of trimmed non-empty strings
+- Zod errors returned in `{ success: false, error }` so the client can display them
+- `updateItem(itemId, data)` server action in `src/actions/items.ts` with the `{ success, data, error }` pattern: validates with Zod, gets the session via `auth()`, checks ownership, calls the query function
+- `updateItem` query in `src/lib/db/items.ts`: disconnect all existing tags, connect-or-create the new ones, return the updated `ItemDetail` so the drawer refreshes without a second fetch
+- After save, call `router.refresh()` so the underlying card list reflects the changes
 
 ## Notes
 
-<!-- Any extra notes -->
+- Keep it simple: no form library, controlled inputs with local state
+- Client-side guard: disable Save when the title is empty; server-side Zod is the source of truth
+- The content textarea doesn't need to be a code editor — that comes later
+- Toasts: add shadcn's sonner (first toast library in the project)
+- Tags: orphaned tags left in place after edits, no cleanup for now
+- Spec: context/features/item-drawer-edit-spec.md
 
 ## History
 

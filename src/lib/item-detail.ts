@@ -1,5 +1,5 @@
 import type { ItemContentType } from "@/generated/prisma/enums";
-import type { ItemDetailJson } from "@/types/items";
+import type { ItemDetail, ItemDetailJson } from "@/types/items";
 
 const SAFE_PROTOCOLS = new Set(["http:", "https:"]);
 const FILE_SIZE_UNITS = ["B", "KB", "MB", "GB"];
@@ -32,6 +32,16 @@ export function getContentLabel(contentType: ItemContentType): string {
   if (contentType === "URL") return "URL";
   if (contentType === "FILE") return "File";
   return "Content";
+}
+
+// A server action returns real Dates; the drawer keeps the item in the same
+// shape /api/items/[id] sends, with ISO strings.
+export function toItemDetailJson(item: ItemDetail): ItemDetailJson {
+  return {
+    ...item,
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
+  };
 }
 
 // What the drawer's Copy button puts on the clipboard, or null when there's nothing to copy.

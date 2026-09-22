@@ -34,6 +34,7 @@ export function ItemDrawerProvider({ children }: { children: ReactNode }) {
   // The clicked card's data, shown right away while the full detail loads.
   const [preview, setPreview] = useState<ItemWithType | null>(null);
   const [detail, setDetail] = useState<ItemDetailState>({ status: "loading" });
+  const [editing, setEditing] = useState(false);
   const requestRef = useRef<AbortController | null>(null);
 
   const openItem = useCallback((item: ItemWithType) => {
@@ -44,6 +45,9 @@ export function ItemDrawerProvider({ children }: { children: ReactNode }) {
 
     setPreview(item);
     setDetail({ status: "loading" });
+    // Opening any item, even the same one again, starts in view mode, so
+    // unsaved edits from a closed drawer are discarded.
+    setEditing(false);
     setOpen(true);
 
     fetchItemDetail(item.id, controller.signal)
@@ -62,6 +66,11 @@ export function ItemDrawerProvider({ children }: { children: ReactNode }) {
     setOpen(nextOpen);
   }, []);
 
+  const handleSaved = useCallback((item: ItemDetailJson) => {
+    setDetail({ status: "loaded", item });
+    setEditing(false);
+  }, []);
+
   const value = useMemo(() => ({ openItem }), [openItem]);
 
   return (
@@ -73,6 +82,9 @@ export function ItemDrawerProvider({ children }: { children: ReactNode }) {
         preview={preview}
         detail={detail}
         onRetry={() => preview && openItem(preview)}
+        editing={editing}
+        onEditingChange={setEditing}
+        onSaved={handleSaved}
       />
     </ItemDrawerContext.Provider>
   );

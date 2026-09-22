@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { formatFileSize, getContentLabel, getCopyText, getSafeHref } from "@/lib/item-detail";
+import {
+  formatFileSize,
+  getContentLabel,
+  getCopyText,
+  getSafeHref,
+  toItemDetailJson,
+} from "@/lib/item-detail";
+import type { ItemDetail } from "@/types/items";
 
 describe("getSafeHref", () => {
   it("allows http and https URLs", () => {
@@ -51,5 +58,25 @@ describe("getCopyText", () => {
   it("returns null when there is nothing to copy", () => {
     expect(getCopyText({ ...empty, contentType: "TEXT", content: "" })).toBeNull();
     expect(getCopyText({ ...empty, contentType: "URL", content: "ignored" })).toBeNull();
+  });
+});
+
+describe("toItemDetailJson", () => {
+  it("turns the dates into ISO strings and keeps everything else", () => {
+    const item = {
+      id: "item-1",
+      title: "useAuth Hook",
+      tags: ["auth"],
+      createdAt: new Date("2026-01-15T10:00:00Z"),
+      updatedAt: new Date("2026-02-01T08:30:00Z"),
+    } as ItemDetail;
+
+    expect(toItemDetailJson(item)).toEqual({
+      id: "item-1",
+      title: "useAuth Hook",
+      tags: ["auth"],
+      createdAt: "2026-01-15T10:00:00.000Z",
+      updatedAt: "2026-02-01T08:30:00.000Z",
+    });
   });
 });

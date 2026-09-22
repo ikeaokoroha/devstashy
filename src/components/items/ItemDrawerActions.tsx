@@ -21,10 +21,12 @@ interface ItemDrawerActionsProps {
   isPinned: boolean;
   // Null while the item loads, or when it has nothing to copy.
   copyText: string | null;
+  // Null until the full item has loaded.
+  onEdit: (() => void) | null;
 }
 
-// Only Copy works for now; Favorite, Pin, Edit and Delete are display only.
-export function ItemDrawerActions({ isFavorite, isPinned, copyText }: ItemDrawerActionsProps) {
+// Copy and Edit work; Favorite, Pin and Delete are display only for now.
+export function ItemDrawerActions({ isFavorite, isPinned, copyText, onEdit }: ItemDrawerActionsProps) {
   const [copyStatus, setCopyStatus] = useState<CopyStatus>("idle");
   const resetTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -57,7 +59,13 @@ export function ItemDrawerActions({ isFavorite, isPinned, copyText }: ItemDrawer
         {COPY_LABELS[copyStatus]}
       </Button>
 
-      <Button variant="ghost" size="sm" className="ml-auto">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="ml-auto"
+        disabled={!onEdit}
+        onClick={onEdit ?? undefined}
+      >
         <Pencil />
         Edit
       </Button>
