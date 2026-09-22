@@ -1,38 +1,18 @@
-# Current Feature: Item Drawer — Edit Mode
+# Current Feature
 
-Clicking Edit (pencil) in the item drawer's action bar switches the open drawer from view mode to edit mode inline; fields become editable inputs.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Edit button toggles the drawer into edit mode; the action bar is replaced with Save and Cancel
-- Cancel discards changes and returns to view mode
-- Save persists via a server action, returns to view mode and refreshes the drawer with the returned data
-- Toast notification on save success or error
-- Editable for all types: Title (text input, required), Description (textarea, optional), Tags (comma-separated input converted to a tag array on save)
-- Type-specific fields, shown only for the relevant type: Content (textarea) for snippet, prompt, command, note; Language (text input) for snippet, command; URL (text input) for link
-- Display only in edit mode: item type, collections (managed separately later), created/updated dates
-- Zod schema for the update payload, validated in the server action before the database:
-  - `title` — non-empty trimmed string
-  - `description`, `content`, `language` — string or null, optional
-  - `url` — valid URL string or null, optional
-  - `tags` — array of trimmed non-empty strings
-- Zod errors returned in `{ success: false, error }` so the client can display them
-- `updateItem(itemId, data)` server action in `src/actions/items.ts` with the `{ success, data, error }` pattern: validates with Zod, gets the session via `auth()`, checks ownership, calls the query function
-- `updateItem` query in `src/lib/db/items.ts`: disconnect all existing tags, connect-or-create the new ones, return the updated `ItemDetail` so the drawer refreshes without a second fetch
-- After save, call `router.refresh()` so the underlying card list reflects the changes
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Keep it simple: no form library, controlled inputs with local state
-- Client-side guard: disable Save when the title is empty; server-side Zod is the source of truth
-- The content textarea doesn't need to be a code editor — that comes later
-- Toasts: add shadcn's sonner (first toast library in the project)
-- Tags: orphaned tags left in place after edits, no cleanup for now
-- Spec: context/features/item-drawer-edit-spec.md
+<!-- Any extra notes -->
 
 ## History
 
@@ -106,3 +86,9 @@ The /items/[type] grid in src/components/items/ItemGrid.tsx now goes up to three
 
 Item Drawer
 Clicking an item card on the dashboard or an /items/[type] page opens a right-side shadcn Sheet with the full item; the drawer is the item detail view, with no separate item page (an /items/[id] page would also clash with /items/[type] at the same segment). getItemDetail in src/lib/db/items.ts looks the item up with findFirst on id and userId, so another user's id finds nothing, and returns content, url, file fields, language, dates, the type, tag names and the item's collections (id and name, sorted by name). GET /api/items/[id] (src/app/api/items/[id]/route.ts) checks the session itself since the proxy doesn't cover /api, then scopes to the demo user via getCurrentUserId like the pages, returning `{ success, data, error }` with 401, 404 or 500. ItemDrawerProvider (src/components/items) wraps the page content in the (app) layout and exposes openItem through context; it aborts the previous request when another card is clicked so a slow response can't overwrite a newer one, and aborts on close. ItemCard stays a server component: OpenItemButton, a small client button absolutely positioned over the relatively positioned card, opens the drawer, and the card gained a hover background. The drawer's header (type icon, title, type and language badges) renders from the clicked card's data immediately, while a Skeleton covers the body until the detail arrives; errors show the message with a Try again button. ItemDetailBody shows description, content in a scrollable monospace block (or the link, or the file name and size), tags, collections and created/updated dates in a fixed en-US UTC format. The action bar in ItemDrawerActions has Favorite (yellow star when active), Pin, Copy, Edit and a right-aligned red Delete; only Copy works, copying the content, URL or file URL and flipping its label to "Copied" for 2s (no toast library, so the button itself confirms), and the rest are display only. Helpers in src/lib/item-detail.ts: getSafeHref only links http(s) URLs so a stored javascript: URL can't become a clickable link, plus formatFileSize, getContentLabel and getCopyText. ItemDetail, ItemDetailJson (dates as strings over JSON) and ItemDetailState live in src/types/items.ts. Tests cover getItemDetail, the route (401 without a session and no lookup, 404, 200, 500) and the helpers, bringing the suite to 30. Known gaps: the drawer isn't in the URL, so it can't be linked to, doesn't survive a refresh and isn't closed by the back button (a ?item=id param was discussed and deferred, worth revisiting when ⌘K search needs to open items); every open refetches with no client cache; content has no syntax highlighting yet; and the /api route still uses the demo user. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user.
+
+Session User Scoping (fix)
+Scoped every page and the item API to the signed-in user, replacing the getCurrentUserId demo-user placeholder ahead of item editing, since a write scoped to a hard-coded user would have let any signed-in account edit the demo user's items. The dashboard and /items/[type] pages now use requireUserId, the (app) layout takes the id from the session it already reads for the sidebar user, and GET /api/items/[id] scopes to session.user.id (401 when the session has no id); getCurrentUserId was deleted from src/lib/db/users.ts and the route test now expects the session user. Signing in as demo@devstash.io still shows the seeded data, while other accounts see only their own (empty) data.
+
+Item Drawer — Edit Mode
+The item drawer's Edit button, enabled once the full item has loaded, switches the open drawer to edit mode inline: Save and Cancel replace the action bar and the body becomes controlled inputs (no form library) for title, description and comma-separated tags, plus content for snippet/prompt/command/note, language for snippet/command and URL for link, while the type badge, collections and dates stay read-only (collections and dates now render through a shared ItemMetadata in ItemDetailBody for both modes). src/lib/item-validation.ts holds updateItemSchema (title trimmed and required; blank description/language/url stored as null; content not trimmed so a snippet's leading indentation survives, whitespace-only becoming null; url limited to http(s); tags trimmed with blanks and duplicates dropped), parseTags for the comma-separated input and getEditableFields, the per-type field map shared by the form and the query. The updateItem server action in src/actions/items.ts gets the user from requireUserId, returns field errors in data.fieldErrors like changePassword, "Item not found." when the query finds nothing, and a generic error in try/catch. The updateItem query in src/lib/db/items.ts checks ownership with findFirst on id and userId, writes only the fields the item's type uses (so a crafted payload can't give a link content), and replaces tags as two updates in one batch transaction — set: [] then connectOrCreate on the unique Tag name — because the order of set and connectOrCreate within a single nested write isn't something to rely on; it returns ItemDetail through a toItemDetail mapper now shared with getItemDetail. ItemEditForm submits through a transition with Save disabled while the title is blank or a save is running; on success it shows a sonner toast, hands the returned item (converted with the new toItemDetailJson, since the action returns real Dates) to ItemDrawerProvider, which updates the drawer and leaves edit mode, and calls router.refresh() so the cards behind update; errors show a toast plus per-field messages. The header title now prefers the loaded item's title so a rename shows immediately, and opening any item resets to view mode, discarding unsaved edits. Added the shadcn sonner and textarea components; the Toaster sits in the root layout with theme="dark" because the app hard-codes dark mode and has no next-themes provider (next-themes came in as sonner's dependency). Tests cover the schema, parseTags and getEditableFields, the action (validation failure, not found, success, database error), the query (ownership, tag clear then connect-or-create, type-specific fields, returned shape) and toItemDetailJson, bringing the suite to 50. Known gaps: orphaned tags are left in place after edits, tag names aren't case-normalised so "React" and "react" become separate global tags, and a Tag P2002 race between two concurrent saves surfaces as the generic error. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user.
