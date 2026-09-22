@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { updateItem } from "@/actions/items";
-import { updateItem as updateItemQuery } from "@/lib/db/items";
+import { deleteItem, updateItem } from "@/actions/items";
+import { deleteItem as deleteItemQuery, updateItem as updateItemQuery } from "@/lib/db/items";
 
 vi.mock("@/lib/session", () => ({ requireUserId: vi.fn().mockResolvedValue("user-1") }));
-vi.mock("@/lib/db/items", () => ({ updateItem: vi.fn() }));
+vi.mock("@/lib/db/items", () => ({ updateItem: vi.fn(), deleteItem: vi.fn() }));
 
 const input = {
   title: "  useAuth Hook ",
@@ -55,6 +55,44 @@ describe("updateItem", () => {
     expect(result).toEqual({
       success: false,
       error: "Couldn't save your changes. Please try again.",
+    });
+  });
+});
+
+describe("deleteItem", () => {
+  it("rejects an empty id without touching the database", async () => {
+    const result = await deleteItem("");
+
+    expect(result).toEqual({ success: false, error: "Item not found." });
+    expect(deleteItemQuery).not.toHaveBeenCalled();
+  });
+
+  it("returns not found when the user has no such item", async () => {
+    vi.mocked(deleteItemQuery).mockResolvedValue(false);
+
+    const result = await deleteItem("someone-elses-item");
+
+    expect(result).toEqual({ success: false, error: "Item not found." });
+  });
+
+  it("deletes the item for the signed-in user", async () => {
+    vi.mocked(deleteItemQuery).mockResolvedValue(true);
+
+    const result = await deleteItem("item-1");
+
+    expect(result).toEqual({ success: true });
+    expect(deleteItemQuery).toHaveBeenCalledWith("user-1", "item-1");
+  });
+
+  it("returns a friendly error when the database fails", async () => {
+    vi.mocked(deleteItemQuery).mockRejectedValue(new Error("connection lost"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await deleteItem("item-1");
+
+    expect(result).toEqual({
+      success: false,
+      error: "Couldn't delete this item. Please try again.",
     });
   });
 });

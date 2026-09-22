@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 
-import { updateItem as updateItemQuery } from "@/lib/db/items";
+import { deleteItem as deleteItemQuery, updateItem as updateItemQuery } from "@/lib/db/items";
 import { updateItemSchema, type UpdateItemField, type UpdateItemInput } from "@/lib/item-validation";
 import { requireUserId } from "@/lib/session";
 import type { ActionResult } from "@/types/actions";
@@ -50,5 +50,26 @@ export async function updateItem(
   } catch (error) {
     console.error("Failed to update item", error);
     return { success: false, error: "Couldn't save your changes. Please try again." };
+  }
+}
+
+// Deletes an item from the drawer's confirmation dialog, scoped to the signed-in user.
+export async function deleteItem(itemId: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+
+  const parsedId = itemIdSchema.safeParse(itemId);
+  if (!parsedId.success) {
+    return { success: false, error: "Item not found." };
+  }
+
+  try {
+    const deleted = await deleteItemQuery(userId, parsedId.data);
+    if (!deleted) {
+      return { success: false, error: "Item not found." };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete item", error);
+    return { success: false, error: "Couldn't delete this item. Please try again." };
   }
 }

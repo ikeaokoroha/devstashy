@@ -1,18 +1,29 @@
-# Current Feature
+# Current Feature: Delete Items
 
-<!-- Feature name and short description -->
+Make the item drawer's Delete button work. It asks for confirmation in a shadcn AlertDialog and shows a toast when the delete succeeds.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- The red Delete button in the item drawer's action bar (ItemDrawerActions) opens a shadcn AlertDialog confirmation that names the item and says the action can't be undone, with Cancel and a destructive Delete button
+- A `deleteItem` server action in src/actions/items.ts gets the user from requireUserId, validates the id with Zod, and returns `{ success, data, error }`, with "Item not found." when nothing matches and a generic error in try/catch
+- A `deleteItem` query in src/lib/db/items.ts deletes only when the item belongs to the user (scoped to id and userId), so another user's id deletes nothing
+- While the delete runs, the confirm button is disabled and shows a pending state, so a double click can't send it twice
+- On success: a sonner toast confirms it (e.g. "Item deleted"), the dialog and drawer close, and `router.refresh()` updates the dashboard/list cards and sidebar counts
+- On failure: an error toast, and the dialog and drawer stay open
+- Unit tests for the action (validation failure, not found, success, database error) and the query (ownership scoping), with `npm run test:run` passing
 
 ## Notes
 
-<!-- Any extra notes -->
+- The shadcn alert-dialog and sonner components are already installed; the Toaster is in the root layout
+- ItemCollection rows cascade on item delete (onDelete: Cascade), so collection links are removed automatically and no migration is needed
+- Tags are global and many-to-many, so deleting an item leaves its tags in place (same as the known orphaned-tag gap from edit mode)
+- Follow the updateItem action/query pattern from edit mode, and the DeleteAccountDialog pattern for the confirmation UI
+- Delete is only in the drawer; no delete on the cards themselves
+- Favorite and Pin stay display-only
 
 ## History
 

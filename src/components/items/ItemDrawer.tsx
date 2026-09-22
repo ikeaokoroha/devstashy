@@ -60,10 +60,13 @@ export function ItemDrawer({
                   <ItemDrawerActions
                     // Remount per item so the copy feedback doesn't carry over.
                     key={preview.id}
+                    itemId={preview.id}
+                    title={item?.title ?? preview.title}
                     isFavorite={item?.isFavorite ?? preview.isFavorite}
                     isPinned={item?.isPinned ?? preview.isPinned}
                     copyText={item ? getCopyText(item) : null}
                     onEdit={item ? () => onEditingChange(true) : null}
+                    onDeleted={() => onOpenChange(false)}
                   />
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">

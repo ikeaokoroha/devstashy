@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { getItemDetail, updateItem } from "@/lib/db/items";
+import { deleteItem, getItemDetail, updateItem } from "@/lib/db/items";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    item: { findFirst: vi.fn(), update: vi.fn() },
+    item: { findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
     // The batch form: the updates are already-started promises, resolved in order.
     $transaction: vi.fn((operations: Promise<unknown>[]) => Promise.all(operations)),
   },
@@ -122,5 +122,24 @@ describe("updateItem", () => {
 
     expect(item?.tags).toEqual(["auth", "react"]);
     expect(item?.collections).toEqual([{ id: "col-1", name: "React Patterns" }]);
+  });
+});
+
+describe("deleteItem", () => {
+  it("scopes the delete to the user and reports a deleted item", async () => {
+    vi.mocked(prisma.item.deleteMany).mockResolvedValue({ count: 1 });
+
+    const deleted = await deleteItem("user-1", "item-1");
+
+    expect(deleted).toBe(true);
+    expect(prisma.item.deleteMany).toHaveBeenCalledWith({
+      where: { id: "item-1", userId: "user-1" },
+    });
+  });
+
+  it("returns false when the user has no item with that id", async () => {
+    vi.mocked(prisma.item.deleteMany).mockResolvedValue({ count: 0 });
+
+    expect(await deleteItem("user-1", "someone-elses-item")).toBe(false);
   });
 });

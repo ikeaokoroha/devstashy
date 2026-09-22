@@ -175,6 +175,13 @@ export async function updateItem(
   return toItemDetail(item);
 }
 
+// Deletes the item and returns whether it existed. Scoping to userId makes
+// another user's id a no-op; collection links cascade, tags are left in place.
+export async function deleteItem(userId: string, itemId: string): Promise<boolean> {
+  const { count } = await prisma.item.deleteMany({ where: { id: itemId, userId } });
+  return count > 0;
+}
+
 export async function getRecentItems(
   userId: string,
   limit: number
