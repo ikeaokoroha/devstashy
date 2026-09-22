@@ -59,6 +59,10 @@ export const CREATABLE_ITEM_TYPES = ["snippet", "prompt", "command", "note", "li
 
 export type CreatableItemType = (typeof CREATABLE_ITEM_TYPES)[number];
 
+export function isCreatableItemType(typeName: string): typeName is CreatableItemType {
+  return (CREATABLE_ITEM_TYPES as readonly string[]).includes(typeName);
+}
+
 export const createItemSchema = updateItemSchema
   .extend({ type: z.enum(CREATABLE_ITEM_TYPES, { error: "Choose an item type" }) })
   .superRefine((data, ctx) => {

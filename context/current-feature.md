@@ -1,18 +1,28 @@
-# Current Feature
+# Current Feature: Code Editor
 
-<!-- Feature name and short description -->
+Add a Monaco Editor component for snippets and commands, with a copy button and macOS window styling.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Create a CodeEditor component using Monaco Editor with a dark theme
+- Replace the Textarea with CodeEditor for snippets and commands only
+- Keep the Textarea for notes, prompts and other non-code types
+- Add macOS-style window dots (red/yellow/green) at the top of the editor
+- Add a quick copy button in the editor header
+- Show the language in the editor header next to the copy button
+- Support both display (readonly) and edit modes
+- Fluid editor height with a max of 400px, and a styled scrollbar that matches the theme
+- Added mid-feature: a type-specific New button (e.g. "New Snippet") on each /items/[type] page that opens the New Item dialog with that type preselected
 
 ## Notes
 
-<!-- Any extra notes -->
+- Spec: context/features/code-editor-spec.md
+- Applies wherever snippet/command content is shown or edited: the item drawer's view mode (ItemDetailBody), edit mode (ItemEditForm) and the New Item dialog (NewItemDialog)
+- Monaco is browser-only, so the editor must be a client component loaded without SSR
 
 ## History
 

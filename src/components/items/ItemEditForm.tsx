@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { toItemDetailJson } from "@/lib/item-detail";
 import { getEditableFields, parseTags, type UpdateItemField } from "@/lib/item-validation";
 import type { ItemDetailJson } from "@/types/items";
+import { ContentField } from "./ContentField";
 import { ItemMetadata } from "./ItemDetailBody";
 import { TextareaField } from "./TextareaField";
 
@@ -98,14 +99,13 @@ export function ItemEditForm({ item, typeName, onCancel, onSaved }: ItemEditForm
           rows={2}
         />
         {editable.content && (
-          <TextareaField
-            name="content"
-            label="Content"
+          <ContentField
+            typeName={typeName}
             value={content}
-            onChange={(event) => setContent(event.target.value)}
+            onChange={setContent}
+            language={language}
             error={fieldErrors.content}
-            spellCheck={false}
-            className="max-h-96 min-h-40 font-mono text-xs leading-relaxed md:text-xs"
+            textareaClassName="max-h-96 min-h-40 font-mono text-xs leading-relaxed md:text-xs"
           />
         )}
         {editable.language && (

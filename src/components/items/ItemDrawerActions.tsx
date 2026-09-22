@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Pencil, Pin, Star } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useCopyToClipboard, type CopyStatus } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 import { DeleteItemDialog } from "./DeleteItemDialog";
-
-const COPY_FEEDBACK_MS = 2000;
-
-type CopyStatus = "idle" | "copied" | "failed";
 
 const COPY_LABELS: Record<CopyStatus, string> = {
   idle: "Copy",
@@ -39,21 +35,10 @@ export function ItemDrawerActions({
   onEdit,
   onDeleted,
 }: ItemDrawerActionsProps) {
-  const [copyStatus, setCopyStatus] = useState<CopyStatus>("idle");
-  const resetTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const { status: copyStatus, copy } = useCopyToClipboard();
 
-  useEffect(() => () => clearTimeout(resetTimer.current), []);
-
-  async function handleCopy() {
-    if (!copyText) return;
-    try {
-      await navigator.clipboard.writeText(copyText);
-      setCopyStatus("copied");
-    } catch {
-      setCopyStatus("failed");
-    }
-    clearTimeout(resetTimer.current);
-    resetTimer.current = setTimeout(() => setCopyStatus("idle"), COPY_FEEDBACK_MS);
+  function handleCopy() {
+    if (copyText) void copy(copyText);
   }
 
   return (

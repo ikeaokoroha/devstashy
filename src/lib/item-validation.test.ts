@@ -4,6 +4,7 @@ import {
   CREATABLE_ITEM_TYPES,
   createItemSchema,
   getEditableFields,
+  isCreatableItemType,
   parseTags,
   updateItemSchema,
 } from "@/lib/item-validation";
@@ -88,6 +89,17 @@ describe("createItemSchema", () => {
 
     expect(result.success).toBe(false);
     expect(result.error?.issues[0].path).toEqual(["title"]);
+  });
+});
+
+describe("isCreatableItemType", () => {
+  it("accepts the creatable types and rejects file, image and unknown names", () => {
+    for (const type of CREATABLE_ITEM_TYPES) {
+      expect(isCreatableItemType(type)).toBe(true);
+    }
+    expect(isCreatableItemType("file")).toBe(false);
+    expect(isCreatableItemType("image")).toBe(false);
+    expect(isCreatableItemType("snippets")).toBe(false);
   });
 });
 

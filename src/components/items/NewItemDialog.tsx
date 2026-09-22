@@ -29,6 +29,7 @@ import {
   type CreateItemField,
 } from "@/lib/item-validation";
 import { cn } from "@/lib/utils";
+import { ContentField } from "./ContentField";
 import { TextareaField } from "./TextareaField";
 
 const CREATE_ERROR = "Couldn't create this item. Please try again.";
@@ -78,14 +79,15 @@ function TypePicker({ value, onChange }: TypePickerProps) {
 }
 
 interface NewItemFormProps {
+  defaultType: CreatableItemType;
   isSaving: boolean;
   startSaving: TransitionStartFunction;
   onCreated: () => void;
 }
 
 // Unmounted whenever the dialog closes, so each open starts with a blank form.
-function NewItemForm({ isSaving, startSaving, onCreated }: NewItemFormProps) {
-  const [type, setType] = useState<CreatableItemType>("snippet");
+function NewItemForm({ defaultType, isSaving, startSaving, onCreated }: NewItemFormProps) {
+  const [type, setType] = useState<CreatableItemType>(defaultType);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [content, setContent] = useState("");
@@ -148,14 +150,13 @@ function NewItemForm({ isSaving, startSaving, onCreated }: NewItemFormProps) {
         rows={2}
       />
       {editable.content && (
-        <TextareaField
-          name="content"
-          label="Content"
+        <ContentField
+          typeName={type}
           value={content}
-          onChange={(event) => setContent(event.target.value)}
+          onChange={setContent}
+          language={language}
           error={fieldErrors.content}
-          spellCheck={false}
-          className="max-h-72 min-h-32 font-mono text-xs leading-relaxed md:text-xs"
+          textareaClassName="max-h-72 min-h-32 font-mono text-xs leading-relaxed md:text-xs"
         />
       )}
       {editable.language && (
@@ -201,8 +202,20 @@ function NewItemForm({ isSaving, startSaving, onCreated }: NewItemFormProps) {
   );
 }
 
-// The top bar's New Item button and its dialog.
-export function NewItemDialog() {
+interface NewItemDialogProps {
+  // The type selected when the dialog opens; the picker can still change it.
+  defaultType?: CreatableItemType;
+  label?: string;
+  size?: "default" | "lg";
+}
+
+// A New Item button and its dialog: the top bar's generic one, or a type page's
+// "New Snippet" with that type preselected.
+export function NewItemDialog({
+  defaultType = "snippet",
+  label = "New Item",
+  size = "lg",
+}: NewItemDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isSaving, startSaving] = useTransition();
@@ -221,12 +234,17 @@ export function NewItemDialog() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button size="lg" />}>
+      <DialogTrigger render={<Button size={size} />}>
         <Plus />
-        New Item
+        {label}
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
-        <NewItemForm isSaving={isSaving} startSaving={startSaving} onCreated={handleCreated} />
+        <NewItemForm
+          defaultType={defaultType}
+          isSaving={isSaving}
+          startSaving={startSaving}
+          onCreated={handleCreated}
+        />
       </DialogContent>
     </Dialog>
   );

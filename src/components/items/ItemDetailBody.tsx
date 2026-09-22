@@ -3,8 +3,10 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isCodeType } from "@/lib/code-editor";
 import { formatFileSize, getContentLabel, getSafeHref } from "@/lib/item-detail";
 import type { ItemDetailJson } from "@/types/items";
+import { CodeEditor } from "./CodeEditor";
 
 // Fixed locale and UTC so the date doesn't shift with the viewer's time zone.
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -64,6 +66,18 @@ function ItemContent({ item }: { item: ItemDetailJson }) {
 
   if (!item.content) {
     return <p className="text-muted-foreground">No content</p>;
+  }
+
+  if (isCodeType(item.itemType.name)) {
+    return (
+      <CodeEditor
+        value={item.content}
+        typeName={item.itemType.name}
+        language={item.language}
+        ariaLabel={`${item.title} content`}
+        readOnly
+      />
+    );
   }
 
   return (

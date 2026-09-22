@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ItemGrid } from "@/components/items/ItemGrid";
+import { NewItemDialog } from "@/components/items/NewItemDialog";
 import { getItemsByType } from "@/lib/db/items";
+import { isCreatableItemType } from "@/lib/item-validation";
 import { requireUserId } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import {
@@ -33,18 +35,27 @@ export default async function ItemsByTypePage({ params }: PageProps<"/items/[typ
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-3">
-        <div
-          className={cn("flex size-10 items-center justify-center rounded-lg", bgClass)}
-        >
-          <Icon className={cn("size-5", textClass)} />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div
+            className={cn("flex size-10 items-center justify-center rounded-lg", bgClass)}
+          >
+            <Icon className={cn("size-5", textClass)} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold">{label}</h1>
+            <p className="text-muted-foreground">
+              {items.length} {items.length === 1 ? "item" : "items"}
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-semibold">{label}</h1>
-          <p className="text-muted-foreground">
-            {items.length} {items.length === 1 ? "item" : "items"}
-          </p>
-        </div>
+        {isCreatableItemType(typeName) && (
+          <NewItemDialog
+            defaultType={typeName}
+            label={`New ${capitalize(typeName)}`}
+            size="default"
+          />
+        )}
       </div>
 
       <ItemGrid items={items} emptyMessage={`No ${label.toLowerCase()} yet.`} />
