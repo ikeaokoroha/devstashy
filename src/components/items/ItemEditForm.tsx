@@ -9,47 +9,15 @@ import { toast } from "sonner";
 import { updateItem } from "@/actions/items";
 import { FormField } from "@/components/auth/FormField";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { toItemDetailJson } from "@/lib/item-detail";
 import { getEditableFields, parseTags, type UpdateItemField } from "@/lib/item-validation";
 import type { ItemDetailJson } from "@/types/items";
 import { ItemMetadata } from "./ItemDetailBody";
+import { TextareaField } from "./TextareaField";
 
 const SAVE_ERROR = "Couldn't save your changes. Please try again.";
 
 type FieldErrors = Partial<Record<UpdateItemField, string>>;
-
-interface TextareaFieldProps extends React.ComponentProps<"textarea"> {
-  name: string;
-  label: string;
-  error?: string;
-}
-
-// FormField's layout for a textarea.
-function TextareaField({ name, label, error, className, ...textareaProps }: TextareaFieldProps) {
-  const id = `field-${name}`;
-  const errorId = `${id}-error`;
-
-  return (
-    <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Textarea
-        id={id}
-        name={name}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
-        className={className}
-        {...textareaProps}
-      />
-      {error && (
-        <p id={errorId} className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
 
 interface ItemEditFormProps {
   item: ItemDetailJson;

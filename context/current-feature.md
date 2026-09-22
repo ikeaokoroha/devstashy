@@ -1,18 +1,30 @@
-# Current Feature
+# Current Feature: Item Create
 
-<!-- Feature name and short description -->
+Add new items via a modal dialog that opens from the "New Item" button in the top bar.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- "New Item" button in the top bar opens a shadcn Dialog
+- Type selector for snippet, prompt, command, note and link
+- Fields shown based on the selected type:
+  - All types: title (required), description, tags
+  - snippet/command: content, language
+  - prompt/note: content
+  - link: URL (required)
+- `createItem` server action with Zod validation
+- `createItem` query function in `src/lib/db/items.ts`
+- On success: toast, close the modal and refresh
 
 ## Notes
 
-<!-- Any extra notes -->
+- Spec: context/features/item-create-spec.md
+- file and image types are excluded (Pro-only, need uploads)
+- Reuse what edit mode built where it fits: updateItemSchema rules, parseTags, getEditableFields in src/lib/item-validation.ts, the connectOrCreate tag pattern, the sonner Toaster and the updateItem action's `{ success, data, error }` shape with data.fieldErrors
+- Scope writes to the session user via requireUserId
 
 ## History
 

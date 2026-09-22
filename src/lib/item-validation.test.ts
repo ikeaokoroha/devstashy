@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { getEditableFields, parseTags, updateItemSchema } from "@/lib/item-validation";
+import {
+  CREATABLE_ITEM_TYPES,
+  createItemSchema,
+  getEditableFields,
+  parseTags,
+  updateItemSchema,
+} from "@/lib/item-validation";
 
 const valid = {
   title: "useAuth Hook",
@@ -45,6 +51,43 @@ describe("updateItemSchema", () => {
   it("trims tags and drops blanks and duplicates", () => {
     const data = updateItemSchema.parse({ ...valid, tags: [" react ", "", "react", "hooks"] });
     expect(data.tags).toEqual(["react", "hooks"]);
+  });
+});
+
+describe("createItemSchema", () => {
+  it("accepts the creatable types", () => {
+    for (const type of CREATABLE_ITEM_TYPES) {
+      const url = type === "link" ? "https://nextjs.org" : null;
+      expect(createItemSchema.safeParse({ ...valid, type, url }).success).toBe(true);
+    }
+  });
+
+  it("rejects file, image and unknown types", () => {
+    for (const type of ["file", "image", "widget"]) {
+      const result = createItemSchema.safeParse({ ...valid, type });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0].path).toEqual(["type"]);
+    }
+  });
+
+  it("requires a URL for links", () => {
+    const result = createItemSchema.safeParse({ ...valid, type: "link", url: "  " });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({ path: ["url"], message: "URL is required" }),
+    ]);
+  });
+
+  it("doesn't require a URL for other types", () => {
+    expect(createItemSchema.safeParse({ ...valid, type: "snippet", url: "" }).success).toBe(true);
+  });
+
+  it("applies the edit rules to the shared fields", () => {
+    const result = createItemSchema.safeParse({ ...valid, type: "note", title: "  " });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0].path).toEqual(["title"]);
   });
 });
 

@@ -52,3 +52,21 @@ export const updateItemSchema = z.object({
 export type UpdateItemInput = z.input<typeof updateItemSchema>;
 export type UpdateItemData = z.output<typeof updateItemSchema>;
 export type UpdateItemField = keyof UpdateItemInput;
+
+// System types the New Item dialog offers, in spec order. file and image are
+// left out until uploads exist.
+export const CREATABLE_ITEM_TYPES = ["snippet", "prompt", "command", "note", "link"] as const;
+
+export type CreatableItemType = (typeof CREATABLE_ITEM_TYPES)[number];
+
+export const createItemSchema = updateItemSchema
+  .extend({ type: z.enum(CREATABLE_ITEM_TYPES, { error: "Choose an item type" }) })
+  .superRefine((data, ctx) => {
+    if (getEditableFields(data.type).url && !data.url) {
+      ctx.addIssue({ code: "custom", path: ["url"], message: "URL is required" });
+    }
+  });
+
+export type CreateItemInput = z.input<typeof createItemSchema>;
+export type CreateItemData = z.output<typeof createItemSchema>;
+export type CreateItemField = keyof CreateItemInput;

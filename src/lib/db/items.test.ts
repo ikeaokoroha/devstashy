@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { deleteItem, getItemDetail, updateItem } from "@/lib/db/items";
+import { createItem, deleteItem, getItemDetail, updateItem } from "@/lib/db/items";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    item: { findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
+    item: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
+    itemType: { findFirst: vi.fn() },
     // The batch form: the updates are already-started promises, resolved in order.
     $transaction: vi.fn((operations: Promise<unknown>[]) => Promise.all(operations)),
   },
@@ -122,6 +123,75 @@ describe("updateItem", () => {
 
     expect(item?.tags).toEqual(["auth", "react"]);
     expect(item?.collections).toEqual([{ id: "col-1", name: "React Patterns" }]);
+  });
+});
+
+describe("createItem", () => {
+  const data = {
+    type: "snippet" as const,
+    title: "useAuth Hook",
+    description: null,
+    content: "export function useAuth() {}",
+    language: "typescript",
+    url: "https://example.com",
+    tags: ["auth", "hooks"],
+  };
+
+  function mockSystemType() {
+    vi.mocked(prisma.itemType.findFirst).mockResolvedValue({ id: "type-1" } as never);
+    vi.mocked(prisma.item.create).mockResolvedValue({ id: "item-9" } as never);
+  }
+
+  it("returns null without writing when the system type doesn't exist", async () => {
+    vi.mocked(prisma.itemType.findFirst).mockResolvedValue(null);
+
+    expect(await createItem("user-1", data)).toBeNull();
+    expect(prisma.itemType.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { name: "snippet", isSystem: true } })
+    );
+    expect(prisma.item.create).not.toHaveBeenCalled();
+  });
+
+  it("creates the item for the user with its type and returns the id", async () => {
+    mockSystemType();
+
+    expect(await createItem("user-1", data)).toBe("item-9");
+
+    const [{ data: created }] = vi.mocked(prisma.item.create).mock.calls[0];
+    expect(created).toMatchObject({
+      title: "useAuth Hook",
+      description: null,
+      contentType: "TEXT",
+      user: { connect: { id: "user-1" } },
+      itemType: { connect: { id: "type-1" } },
+      tags: {
+        connectOrCreate: [
+          { where: { name: "auth" }, create: { name: "auth" } },
+          { where: { name: "hooks" }, create: { name: "hooks" } },
+        ],
+      },
+    });
+  });
+
+  it("only writes the fields the type uses", async () => {
+    mockSystemType();
+
+    await createItem("user-1", data);
+
+    const [{ data: created }] = vi.mocked(prisma.item.create).mock.calls[0];
+    expect(created).toMatchObject({ content: data.content, language: "typescript" });
+    expect(created).not.toHaveProperty("url");
+  });
+
+  it("stores links as URL content with no content or language", async () => {
+    mockSystemType();
+
+    await createItem("user-1", { ...data, type: "link" });
+
+    const [{ data: created }] = vi.mocked(prisma.item.create).mock.calls[0];
+    expect(created).toMatchObject({ contentType: "URL", url: "https://example.com" });
+    expect(created).not.toHaveProperty("content");
+    expect(created).not.toHaveProperty("language");
   });
 });
 

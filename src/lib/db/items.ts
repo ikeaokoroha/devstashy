@@ -1,6 +1,10 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { SYSTEM_ITEM_TYPE_ORDER } from "@/lib/item-types";
-import { getEditableFields, type UpdateItemData } from "@/lib/item-validation";
+import {
+  getEditableFields,
+  type CreateItemData,
+  type UpdateItemData,
+} from "@/lib/item-validation";
 import { prisma } from "@/lib/prisma";
 import type { ItemStats, ItemTypeWithCount, ItemWithType } from "@/types/dashboard";
 import type { ItemDetail } from "@/types/items";
@@ -173,6 +177,41 @@ export async function updateItem(
   ]);
 
   return toItemDetail(item);
+}
+
+// Creates an item of a system type and returns its id, or null when the type
+// doesn't exist. Only the fields the type uses are written; tags are reused by name.
+export async function createItem(
+  userId: string,
+  data: CreateItemData
+): Promise<string | null> {
+  const itemType = await prisma.itemType.findFirst({
+    where: { name: data.type, isSystem: true },
+    select: { id: true },
+  });
+  if (!itemType) {
+    return null;
+  }
+
+  const editable = getEditableFields(data.type);
+  const item = await prisma.item.create({
+    data: {
+      title: data.title,
+      description: data.description,
+      contentType: editable.url ? "URL" : "TEXT",
+      ...(editable.content && { content: data.content }),
+      ...(editable.language && { language: data.language }),
+      ...(editable.url && { url: data.url }),
+      user: { connect: { id: userId } },
+      itemType: { connect: { id: itemType.id } },
+      tags: {
+        connectOrCreate: data.tags.map((name) => ({ where: { name }, create: { name } })),
+      },
+    },
+    select: { id: true },
+  });
+
+  return item.id;
 }
 
 // Deletes the item and returns whether it existed. Scoping to userId makes
