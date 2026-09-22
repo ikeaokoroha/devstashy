@@ -1,18 +1,39 @@
-# Current Feature
+# Current Feature: Markdown Editor
 
-<!-- Feature name and short description -->
+A Markdown editor with Write/Preview tabs for note and prompt content, styled to match the existing CodeEditor.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Create a MarkdownEditor component with a tabbed Write/Preview interface
+- Use it instead of the textarea for notes and prompts only; snippets and commands keep CodeEditor unchanged
+- Render with react-markdown plus remark-gfm (GitHub Flavored Markdown)
+- Match the CodeEditor's dark frame and header, with a copy button in the header styled like CodeEditor's
+- Support readonly and edit modes: readonly shows only the Preview tab; edit mode defaults to Write with Preview available
+- Preview styling through a custom `.markdown-preview` CSS class:
+  - Distinct h1–h6 sizing and weight
+  - Code blocks with a dark background and monospace font; inline code with a subtle highlight
+  - Ordered/unordered lists with proper indentation and bullets
+  - Blockquotes with a left border accent
+  - Blue links with a hover state
+  - Tables with borders and a header background
+- Fluid height up to a max of 400px, matching CodeEditor behavior
+- Integration points:
+  - NewItemDialog: note and prompt content field
+  - ItemDrawer edit mode: note and prompt content field
+  - ItemDrawer view mode: readonly preview for note and prompt content
 
 ## Notes
 
-<!-- Any extra notes -->
+- Spec: context/features/markdown-editor-spec.md
+- The spec names bg-[#1e1e1e] for the container and bg-[#2d2d2d] for the header, but CodeEditor actually uses theme tokens (a bg-muted/40 frame with a bg-muted/60 title bar). Decide at start whether to follow the spec's hex values or match CodeEditor's tokens so the two editors look the same.
+- react-markdown and remark-gfm aren't installed yet.
+- ContentField already picks CodeEditor or TextareaField by type, so it's the natural place to route notes and prompts to MarkdownEditor. ItemDetailBody currently shows prompts and notes in a pre block.
+- react-markdown doesn't render raw HTML by default, so stored content can't inject markup; keep it that way (no rehype-raw). Links should go through the existing getSafeHref check.
+- Tailwind v4: `.markdown-preview` styles go in src/app/globals.css.
 
 ## History
 
