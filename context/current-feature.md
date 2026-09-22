@@ -1,28 +1,18 @@
-# Current Feature: Code Editor
+# Current Feature
 
-Add a Monaco Editor component for snippets and commands, with a copy button and macOS window styling.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Create a CodeEditor component using Monaco Editor with a dark theme
-- Replace the Textarea with CodeEditor for snippets and commands only
-- Keep the Textarea for notes, prompts and other non-code types
-- Add macOS-style window dots (red/yellow/green) at the top of the editor
-- Add a quick copy button in the editor header
-- Show the language in the editor header next to the copy button
-- Support both display (readonly) and edit modes
-- Fluid editor height with a max of 400px, and a styled scrollbar that matches the theme
-- Added mid-feature: a type-specific New button (e.g. "New Snippet") on each /items/[type] page that opens the New Item dialog with that type preselected
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Spec: context/features/code-editor-spec.md
-- Applies wherever snippet/command content is shown or edited: the item drawer's view mode (ItemDetailBody), edit mode (ItemEditForm) and the New Item dialog (NewItemDialog)
-- Monaco is browser-only, so the editor must be a client component loaded without SSR
+<!-- Any extra notes -->
 
 ## History
 
@@ -108,3 +98,6 @@ The item drawer's red Delete button now works. It opens a shadcn AlertDialog (sr
 
 Item Create
 The top bar's New Item button now opens a shadcn Dialog (src/components/items/NewItemDialog.tsx, a client island inside the server TopBar) for creating snippets, prompts, commands, notes and links; file and image are left out until uploads exist. A type picker of toggle buttons (a radiogroup, three per row on phones and five from sm up) shows each type's colored icon, and the selected one takes the type's color for its border, tint and label — built as plain buttons because the outline Button's dark-mode bg and border classes overrode the tint and made the selection invisible; labels are 12px with 14px icons so "Command" fits the ~100px buttons. Fields follow getEditableFields: title, description and comma-separated tags for all, content for snippet/prompt/command/note, language for snippet/command and a required URL for link; values typed into a hidden field are kept across type switches but not sent. The form lives in a child that unmounts on close, so each open starts blank; Create is disabled while the title (or a link's URL) is blank or a save is running, and Escape or an outside click can't close the dialog mid-save. On success a sonner "Item created" toast shows, the dialog closes and router.refresh() updates the cards and sidebar counts; errors show a toast plus per-field messages. createItemSchema in src/lib/item-validation.ts extends updateItemSchema with a type enum over CREATABLE_ITEM_TYPES and a superRefine requiring the URL for links. The createItem action in src/actions/items.ts uses requireUserId, returns the new id or data.fieldErrors, "That item type isn't available." when the query finds no type, and a generic error in try/catch; the field-error mapping moved into a shared fieldErrorResult helper that updateItem now uses too. The createItem query in src/lib/db/items.ts looks the system type up by name, sets contentType to URL for links and TEXT otherwise, writes only the fields the type uses and connects-or-creates tags by name in the same create. TextareaField moved out of ItemEditForm into its own file for both forms. Tests cover the schema (allowed and rejected types, link URL required, shared rules), the query (missing type, user and type connects with tags, per-type fields, link content type) and the action (validation failure, missing type, success, database error), bringing the suite to 69. Known gaps: the type radiogroup has no arrow-key navigation, field errors stay visible until the next submit, a link with both title and URL blank only reports the title (Zod skips the refine while another field fails, and the disabled Create button prevents it anyway), and the tag case-normalisation and P2002 race gaps from edit mode apply here too. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user.
+
+Code Editor
+Snippets and commands now show and edit their content in a Monaco editor (@monaco-editor/react 4.7, which loads Monaco from the jsDelivr CDN at runtime; monaco-editor 0.55.1, the CDN's version, is a dev dependency for types only). src/components/items/CodeEditor.tsx is the only new client component and pulls the editor in through next/dynamic with ssr: false, so Monaco only downloads when a snippet or command is opened or picked in a form, with a Skeleton until it's ready; the pages, cards and sidebar stay server-rendered. It sits in a macOS-style frame with red/yellow/green dots, the language and a copy button in the title bar, and uses a devstash-dark theme defined in beforeMount with transparent editor and gutter backgrounds (so the frame's bg-muted/40 shows through) and a thin 8px scrollbar in the same faint white as the app's borders. The height starts from a line-count estimate and then follows Monaco's content height (onDidContentSizeChange) up to 400px before scrolling, with a 120px minimum only in edit mode so a read-only one-liner stays one line; it's set through an inline style since it's measured at runtime, and alwaysConsumeMouseWheel is off so the drawer scrolls past the editor's edge. Read-only mode drops line numbers and the line highlight; edit mode shows line numbers and the textarea's focus ring. The drawer's view mode (ItemDetailBody) uses it read-only for snippets and commands, while prompts and notes keep the pre block; a new ContentField picks CodeEditor or TextareaField by type for ItemEditForm and NewItemDialog, and the title bar's language follows the Language field as it's typed. src/lib/code-editor.ts holds isCodeType, getEditorLanguage (aliases like ts, bash and yml mapped to Monaco ids, commands with no language as shell, unknown languages as plaintext), getEditorHeight and estimateContentHeight. The drawer Copy button's clipboard logic moved into a shared useCopyToClipboard hook in src/hooks that both copy buttons use. Added mid-feature: each /items/[type] page for a creatable type has a New button (e.g. "New Snippet") in its header that opens the New Item dialog with that type preselected, through new defaultType, label and size props on NewItemDialog (the top bar keeps the defaults) and an isCreatableItemType guard in item-validation.ts, so the Files and Images pages get no button. Tests cover the four code-editor helpers and isCreatableItemType, bringing the suite to 79; the hook and components aren't unit tested. Known gaps: the editor depends on the jsDelivr CDN being reachable, the Geist Mono font is passed to Monaco as a CSS variable and falls back to the system monospace if Monaco doesn't resolve it, and field errors under the editor aren't linked through aria-describedby. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user.
