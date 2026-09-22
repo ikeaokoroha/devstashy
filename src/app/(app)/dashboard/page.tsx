@@ -4,14 +4,14 @@ import { RecentCollections } from "@/components/dashboard/RecentCollections";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { getCollectionStats, getRecentCollections } from "@/lib/db/collections";
 import { getItemStats, getPinnedItems, getRecentItems } from "@/lib/db/items";
-import { getCurrentUserId } from "@/lib/db/users";
+import { requireUserId } from "@/lib/session";
 
 const RECENT_COLLECTIONS_LIMIT = 6;
 const RECENT_ITEMS_LIMIT = 10;
 const PINNED_ITEMS_LIMIT = 10;
 
 export default async function DashboardPage() {
-  const userId = await getCurrentUserId();
+  const userId = await requireUserId();
   const [itemStats, collectionStats, recentCollections, pinnedItems, recentItems] =
     await Promise.all([
       getItemStats(userId),

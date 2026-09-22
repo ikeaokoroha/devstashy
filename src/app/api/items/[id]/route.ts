@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { getItemDetail } from "@/lib/db/items";
-import { getCurrentUserId } from "@/lib/db/users";
 
 function errorResponse(error: string, status: number) {
   return NextResponse.json({ success: false, error }, { status });
@@ -12,16 +11,14 @@ function errorResponse(error: string, status: number) {
 export async function GET(_request: Request, { params }: RouteContext<"/api/items/[id]">) {
   // The proxy doesn't cover /api, so the route checks the session itself.
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return errorResponse("Unauthorized", 401);
   }
 
   const { id } = await params;
 
   try {
-    // Scoped to the demo user like the dashboard and items pages until they move to the session user.
-    const userId = await getCurrentUserId();
-    const item = await getItemDetail(userId, id);
+    const item = await getItemDetail(session.user.id, id);
     if (!item) {
       return errorResponse("Item not found", 404);
     }

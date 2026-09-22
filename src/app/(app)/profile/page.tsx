@@ -12,8 +12,6 @@ import { requireUserId } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Profile · Devstashy" };
 
-// Scoped to the signed-in user rather than the demo user the dashboard still
-// uses: the actions on this page change and delete the real account.
 export default async function ProfilePage() {
   const userId = await requireUserId();
   const [user, itemStats, collectionStats, itemTypes] = await Promise.all([

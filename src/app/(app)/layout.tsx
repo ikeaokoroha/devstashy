@@ -8,7 +8,6 @@ import { ItemDrawerProvider } from "@/components/items/ItemDrawerProvider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getSidebarCollections } from "@/lib/db/collections";
 import { getSystemItemTypes } from "@/lib/db/items";
-import { getCurrentUserId } from "@/lib/db/users";
 
 const SIDEBAR_FAVORITE_COLLECTIONS_LIMIT = 10;
 const SIDEBAR_RECENT_COLLECTIONS_LIMIT = 5;
@@ -22,13 +21,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   // The proxy already redirects signed-out visitors; this narrows the type.
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect(SIGN_IN_PATH);
   }
 
-  const { name, email, image } = session.user;
+  const { id: userId, name, email, image } = session.user;
 
-  const userId = await getCurrentUserId();
   const [itemTypes, collections] = await Promise.all([
     getSystemItemTypes(userId),
     getSidebarCollections(

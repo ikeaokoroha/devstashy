@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { ItemGrid } from "@/components/items/ItemGrid";
 import { getItemsByType } from "@/lib/db/items";
-import { getCurrentUserId } from "@/lib/db/users";
+import { requireUserId } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import {
   getItemTypeNameFromSlug,
@@ -26,7 +26,7 @@ export default async function ItemsByTypePage({ params }: PageProps<"/items/[typ
     notFound();
   }
 
-  const userId = await getCurrentUserId();
+  const userId = await requireUserId();
   const items = await getItemsByType(userId, typeName);
   const { icon: Icon, textClass, bgClass } = getItemTypeStyle(typeName);
   const label = capitalize(getItemTypeSlug(typeName));

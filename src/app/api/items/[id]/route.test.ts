@@ -5,7 +5,6 @@ import { auth } from "@/auth";
 import { getItemDetail } from "@/lib/db/items";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/db/users", () => ({ getCurrentUserId: vi.fn().mockResolvedValue("demo-user") }));
 vi.mock("@/lib/db/items", () => ({ getItemDetail: vi.fn() }));
 
 // auth() is overloaded (session getter and middleware wrapper); tests only use the getter form.
@@ -38,7 +37,7 @@ describe("GET /api/items/[id]", () => {
     const response = await callGet("missing");
 
     expect(response.status).toBe(404);
-    expect(getItemDetail).toHaveBeenCalledWith("demo-user", "missing");
+    expect(getItemDetail).toHaveBeenCalledWith("session-user", "missing");
   });
 
   it("returns the item", async () => {
