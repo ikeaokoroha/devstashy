@@ -132,6 +132,25 @@ export async function getItemDetail(
   return item ? toItemDetail(item) : null;
 }
 
+export interface ItemFile {
+  fileUrl: string;
+  fileName: string;
+}
+
+// Just the stored file of one of the user's items, for the download proxy.
+// Returns null when the item isn't theirs or holds no file.
+export async function getItemFile(userId: string, itemId: string): Promise<ItemFile | null> {
+  const item = await prisma.item.findFirst({
+    where: { id: itemId, userId, contentType: "FILE" },
+    select: { fileUrl: true, fileName: true },
+  });
+
+  if (!item?.fileUrl || !item.fileName) {
+    return null;
+  }
+  return { fileUrl: item.fileUrl, fileName: item.fileName };
+}
+
 // Saves the drawer's edit form and returns the updated item, or null when the
 // user has no item with that id. Fields the item's type doesn't use are left alone.
 export async function updateItem(
@@ -198,10 +217,15 @@ export async function createItem(
     data: {
       title: data.title,
       description: data.description,
-      contentType: editable.url ? "URL" : "TEXT",
+      contentType: editable.file ? "FILE" : editable.url ? "URL" : "TEXT",
       ...(editable.content && { content: data.content }),
       ...(editable.language && { language: data.language }),
       ...(editable.url && { url: data.url }),
+      ...(editable.file && {
+        fileUrl: data.fileUrl,
+        fileName: data.fileName,
+        fileSize: data.fileSize,
+      }),
       user: { connect: { id: userId } },
       itemType: { connect: { id: itemType.id } },
       tags: {
@@ -214,11 +238,28 @@ export async function createItem(
   return item.id;
 }
 
-// Deletes the item and returns whether it existed. Scoping to userId makes
+export interface DeletedItem {
+  deleted: boolean;
+  // The stored file of a deleted file/image item, for the caller to remove from
+  // R2. Null for every other type, and when nothing was deleted.
+  fileUrl: string | null;
+}
+
+// Deletes the item and reports whether it existed. Scoping to userId makes
 // another user's id a no-op; collection links cascade, tags are left in place.
-export async function deleteItem(userId: string, itemId: string): Promise<boolean> {
+// The row is read first because a delete can't return what it removed.
+export async function deleteItem(userId: string, itemId: string): Promise<DeletedItem> {
+  const existing = await prisma.item.findFirst({
+    where: { id: itemId, userId },
+    select: { fileUrl: true },
+  });
+
   const { count } = await prisma.item.deleteMany({ where: { id: itemId, userId } });
-  return count > 0;
+  if (count === 0) {
+    return { deleted: false, fileUrl: null };
+  }
+
+  return { deleted: true, fileUrl: existing?.fileUrl ?? null };
 }
 
 export async function getRecentItems(

@@ -6,17 +6,21 @@ export interface EditableItemFields {
   content: boolean;
   language: boolean;
   url: boolean;
+  file: boolean;
 }
 
 const CONTENT_TYPES = new Set(["snippet", "prompt", "command", "note"]);
 const LANGUAGE_TYPES = new Set(["snippet", "command"]);
 const URL_TYPES = new Set(["link"]);
+const FILE_TYPES = new Set(["file", "image"]);
 
 export function getEditableFields(typeName: string): EditableItemFields {
   return {
     content: CONTENT_TYPES.has(typeName),
     language: LANGUAGE_TYPES.has(typeName),
     url: URL_TYPES.has(typeName),
+    // Set only at create time: the drawer's edit form can't swap the file out.
+    file: FILE_TYPES.has(typeName),
   };
 }
 
@@ -54,8 +58,16 @@ export type UpdateItemData = z.output<typeof updateItemSchema>;
 export type UpdateItemField = keyof UpdateItemInput;
 
 // System types the New Item dialog offers, in spec order. file and image are
-// left out until uploads exist.
-export const CREATABLE_ITEM_TYPES = ["snippet", "prompt", "command", "note", "link"] as const;
+// Pro-only in the plan, but every type is open during development.
+export const CREATABLE_ITEM_TYPES = [
+  "snippet",
+  "prompt",
+  "command",
+  "note",
+  "file",
+  "image",
+  "link",
+] as const;
 
 export type CreatableItemType = (typeof CREATABLE_ITEM_TYPES)[number];
 
@@ -64,10 +76,29 @@ export function isCreatableItemType(typeName: string): typeName is CreatableItem
 }
 
 export const createItemSchema = updateItemSchema
-  .extend({ type: z.enum(CREATABLE_ITEM_TYPES, { error: "Choose an item type" }) })
+  .extend({
+    type: z.enum(CREATABLE_ITEM_TYPES, { error: "Choose an item type" }),
+    // Filled in by FileUpload once the browser's PUT to R2 finishes. The URL is
+    // only checked for shape here; the action re-checks that it points into our
+    // own bucket, since a client could otherwise store any URL it likes.
+    fileUrl: optionalText.pipe(
+      z.url({ protocol: /^https?$/, error: "Upload a file" }).nullable()
+    ),
+    fileName: optionalText,
+    fileSize: z
+      .number()
+      .int()
+      .positive()
+      .nullish()
+      .transform((value) => value ?? null),
+  })
   .superRefine((data, ctx) => {
-    if (getEditableFields(data.type).url && !data.url) {
+    const editable = getEditableFields(data.type);
+    if (editable.url && !data.url) {
       ctx.addIssue({ code: "custom", path: ["url"], message: "URL is required" });
+    }
+    if (editable.file && !(data.fileUrl && data.fileName && data.fileSize)) {
+      ctx.addIssue({ code: "custom", path: ["fileUrl"], message: "Upload a file" });
     }
   });
 

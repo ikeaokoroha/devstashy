@@ -20,6 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { isFileItemType } from "@/lib/file-upload";
 import { getItemTypeStyle } from "@/lib/item-types";
 import {
   CREATABLE_ITEM_TYPES,
@@ -29,7 +30,9 @@ import {
   type CreateItemField,
 } from "@/lib/item-validation";
 import { cn } from "@/lib/utils";
+import type { UploadedFile } from "@/types/items";
 import { ContentField } from "./ContentField";
+import { FileUpload } from "./FileUpload";
 import { TextareaField } from "./TextareaField";
 
 const CREATE_ERROR = "Couldn't create this item. Please try again.";
@@ -49,7 +52,7 @@ function TypePicker({ value, onChange }: TypePickerProps) {
       <div
         role="radiogroup"
         aria-labelledby="new-item-type"
-        className="grid grid-cols-3 gap-2 sm:grid-cols-5"
+        className="grid grid-cols-3 gap-2 sm:grid-cols-4"
       >
         {CREATABLE_ITEM_TYPES.map((type) => {
           const { icon: Icon, textClass, bgClass } = getItemTypeStyle(type);
@@ -94,9 +97,16 @@ function NewItemForm({ defaultType, isSaving, startSaving, onCreated }: NewItemF
   const [language, setLanguage] = useState("");
   const [url, setUrl] = useState("");
   const [tags, setTags] = useState("");
+  const [file, setFile] = useState<UploadedFile | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const editable = getEditableFields(type);
-  const canSubmit = !isSaving && title.trim() !== "" && (!editable.url || url.trim() !== "");
+  const canSubmit =
+    !isSaving &&
+    !isUploading &&
+    title.trim() !== "" &&
+    (!editable.url || url.trim() !== "") &&
+    (!editable.file || file !== null);
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,6 +119,9 @@ function NewItemForm({ defaultType, isSaving, startSaving, onCreated }: NewItemF
           content: editable.content ? content : null,
           language: editable.language ? language : null,
           url: editable.url ? url : null,
+          fileUrl: editable.file ? (file?.fileUrl ?? null) : null,
+          fileName: editable.file ? (file?.fileName ?? null) : null,
+          fileSize: editable.file ? (file?.fileSize ?? null) : null,
           tags: parseTags(tags),
         });
         if (!result.success) {
@@ -149,6 +162,15 @@ function NewItemForm({ defaultType, isSaving, startSaving, onCreated }: NewItemF
         error={fieldErrors.description}
         rows={2}
       />
+      {editable.file && isFileItemType(type) && (
+        <FileUpload
+          typeName={type}
+          value={file}
+          onChange={setFile}
+          error={fieldErrors.fileUrl}
+          onUploadingChange={setIsUploading}
+        />
+      )}
       {editable.content && (
         <ContentField
           typeName={type}

@@ -56,19 +56,52 @@ describe("updateItemSchema", () => {
 });
 
 describe("createItemSchema", () => {
+  const upload = {
+    fileUrl: "https://pub-test.r2.dev/user-1/abc.png",
+    fileName: "logo.png",
+    fileSize: 2048,
+  };
+
   it("accepts the creatable types", () => {
     for (const type of CREATABLE_ITEM_TYPES) {
-      const url = type === "link" ? "https://nextjs.org" : null;
-      expect(createItemSchema.safeParse({ ...valid, type, url }).success).toBe(true);
+      const extra = type === "link" ? { url: "https://nextjs.org" } : { url: null };
+      const file = type === "file" || type === "image" ? upload : {};
+      expect(createItemSchema.safeParse({ ...valid, type, ...extra, ...file }).success).toBe(true);
     }
   });
 
-  it("rejects file, image and unknown types", () => {
-    for (const type of ["file", "image", "widget"]) {
+  it("rejects an unknown type", () => {
+    const result = createItemSchema.safeParse({ ...valid, type: "widget" });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0].path).toEqual(["type"]);
+  });
+
+  it("requires an uploaded file for files and images", () => {
+    for (const type of ["file", "image"]) {
       const result = createItemSchema.safeParse({ ...valid, type });
+
       expect(result.success).toBe(false);
-      expect(result.error?.issues[0].path).toEqual(["type"]);
+      expect(result.error?.issues).toEqual([
+        expect.objectContaining({ path: ["fileUrl"], message: "Upload a file" }),
+      ]);
     }
+  });
+
+  it("requires every part of the upload, not just the URL", () => {
+    const result = createItemSchema.safeParse({
+      ...valid,
+      type: "file",
+      ...upload,
+      fileSize: null,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0].path).toEqual(["fileUrl"]);
+  });
+
+  it("doesn't require a file for other types", () => {
+    expect(createItemSchema.safeParse({ ...valid, type: "note" }).success).toBe(true);
   });
 
   it("requires a URL for links", () => {
@@ -93,13 +126,12 @@ describe("createItemSchema", () => {
 });
 
 describe("isCreatableItemType", () => {
-  it("accepts the creatable types and rejects file, image and unknown names", () => {
+  it("accepts every creatable type and rejects unknown names", () => {
     for (const type of CREATABLE_ITEM_TYPES) {
       expect(isCreatableItemType(type)).toBe(true);
     }
-    expect(isCreatableItemType("file")).toBe(false);
-    expect(isCreatableItemType("image")).toBe(false);
     expect(isCreatableItemType("snippets")).toBe(false);
+    expect(isCreatableItemType("widget")).toBe(false);
   });
 });
 
@@ -115,18 +147,36 @@ describe("parseTags", () => {
 
 describe("getEditableFields", () => {
   it("allows content and language for snippets", () => {
-    expect(getEditableFields("snippet")).toEqual({ content: true, language: true, url: false });
+    expect(getEditableFields("snippet")).toEqual({
+      content: true,
+      language: true,
+      url: false,
+      file: false,
+    });
   });
 
   it("allows content but no language for notes", () => {
-    expect(getEditableFields("note")).toEqual({ content: true, language: false, url: false });
+    expect(getEditableFields("note")).toEqual({
+      content: true,
+      language: false,
+      url: false,
+      file: false,
+    });
   });
 
   it("allows only the URL for links", () => {
-    expect(getEditableFields("link")).toEqual({ content: false, language: false, url: true });
+    expect(getEditableFields("link")).toEqual({
+      content: false,
+      language: false,
+      url: true,
+      file: false,
+    });
   });
 
-  it("allows none of them for files", () => {
-    expect(getEditableFields("file")).toEqual({ content: false, language: false, url: false });
+  it("allows only the file for files and images", () => {
+    const fields = { content: false, language: false, url: false, file: true };
+
+    expect(getEditableFields("file")).toEqual(fields);
+    expect(getEditableFields("image")).toEqual(fields);
   });
 });

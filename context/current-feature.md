@@ -1,18 +1,47 @@
-# Current Feature
+# Current Feature: File Upload with Cloudflare R2
 
-<!-- Feature name and short description -->
+File and image upload for `file` and `image` item types, stored in Cloudflare R2.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Add an upload API route that puts files into Cloudflare R2
+- Keep all Prisma/db functions in `src/lib/db/items.ts`
+- Build a `FileUpload` component with drag-and-drop
+- Use `FileUpload` in the New Item dialog for the `file` and `image` types
+- Delete the R2 object when an item is deleted
+- Add a download proxy API route (avoids CORS issues)
+- Add a download button in the item drawer for file types
+- Show an upload progress indicator
+- Show an image preview for images, and file info (name, size) for files
 
 ## Notes
 
-<!-- Any extra notes -->
+File constraints:
+
+| Type   | Max size | Extensions                                                                       |
+| ------ | -------- | -------------------------------------------------------------------------------- |
+| Images | 5 MB     | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`                                  |
+| Files  | 10 MB    | `.pdf`, `.txt`, `.md`, `.json`, `.yaml`, `.yml`, `.xml`, `.csv`, `.toml`, `.ini`  |
+
+Accepted MIME types:
+
+- Images: `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/svg+xml`
+- Files: `application/pdf`, `text/plain` (also `.ini`), `text/markdown`, `application/json`,
+  `application/x-yaml`, `text/yaml`, `application/xml`, `text/xml`, `text/csv`, `application/toml`
+
+Existing context this builds on:
+
+- `Item` already has `fileUrl`, `fileName`, `fileSize` and `contentType = FILE`; no migration expected.
+- `file` and `image` are Pro-only types, currently excluded from `CREATABLE_ITEM_TYPES` in
+  `src/lib/item-validation.ts` — creating them means opening that up.
+- `ItemDetailBody` already renders the file name and size in the drawer; the drawer's Copy
+  button copies `fileUrl` via `getCopyText`.
+- Uploads need an API route (not a server action) for progress tracking, per coding-standards.md.
+- R2 credentials will need new env vars, which Vercel needs set manually like the Upstash ones.
 
 ## History
 
