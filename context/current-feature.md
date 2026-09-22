@@ -1,29 +1,18 @@
-# Current Feature: Delete Items
+# Current Feature
 
-Make the item drawer's Delete button work. It asks for confirmation in a shadcn AlertDialog and shows a toast when the delete succeeds.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- The red Delete button in the item drawer's action bar (ItemDrawerActions) opens a shadcn AlertDialog confirmation that names the item and says the action can't be undone, with Cancel and a destructive Delete button
-- A `deleteItem` server action in src/actions/items.ts gets the user from requireUserId, validates the id with Zod, and returns `{ success, data, error }`, with "Item not found." when nothing matches and a generic error in try/catch
-- A `deleteItem` query in src/lib/db/items.ts deletes only when the item belongs to the user (scoped to id and userId), so another user's id deletes nothing
-- While the delete runs, the confirm button is disabled and shows a pending state, so a double click can't send it twice
-- On success: a sonner toast confirms it (e.g. "Item deleted"), the dialog and drawer close, and `router.refresh()` updates the dashboard/list cards and sidebar counts
-- On failure: an error toast, and the dialog and drawer stay open
-- Unit tests for the action (validation failure, not found, success, database error) and the query (ownership scoping), with `npm run test:run` passing
+<!-- Goals and requirements -->
 
 ## Notes
 
-- The shadcn alert-dialog and sonner components are already installed; the Toaster is in the root layout
-- ItemCollection rows cascade on item delete (onDelete: Cascade), so collection links are removed automatically and no migration is needed
-- Tags are global and many-to-many, so deleting an item leaves its tags in place (same as the known orphaned-tag gap from edit mode)
-- Follow the updateItem action/query pattern from edit mode, and the DeleteAccountDialog pattern for the confirmation UI
-- Delete is only in the drawer; no delete on the cards themselves
-- Favorite and Pin stay display-only
+<!-- Any extra notes -->
 
 ## History
 
@@ -103,3 +92,6 @@ Scoped every page and the item API to the signed-in user, replacing the getCurre
 
 Item Drawer — Edit Mode
 The item drawer's Edit button, enabled once the full item has loaded, switches the open drawer to edit mode inline: Save and Cancel replace the action bar and the body becomes controlled inputs (no form library) for title, description and comma-separated tags, plus content for snippet/prompt/command/note, language for snippet/command and URL for link, while the type badge, collections and dates stay read-only (collections and dates now render through a shared ItemMetadata in ItemDetailBody for both modes). src/lib/item-validation.ts holds updateItemSchema (title trimmed and required; blank description/language/url stored as null; content not trimmed so a snippet's leading indentation survives, whitespace-only becoming null; url limited to http(s); tags trimmed with blanks and duplicates dropped), parseTags for the comma-separated input and getEditableFields, the per-type field map shared by the form and the query. The updateItem server action in src/actions/items.ts gets the user from requireUserId, returns field errors in data.fieldErrors like changePassword, "Item not found." when the query finds nothing, and a generic error in try/catch. The updateItem query in src/lib/db/items.ts checks ownership with findFirst on id and userId, writes only the fields the item's type uses (so a crafted payload can't give a link content), and replaces tags as two updates in one batch transaction — set: [] then connectOrCreate on the unique Tag name — because the order of set and connectOrCreate within a single nested write isn't something to rely on; it returns ItemDetail through a toItemDetail mapper now shared with getItemDetail. ItemEditForm submits through a transition with Save disabled while the title is blank or a save is running; on success it shows a sonner toast, hands the returned item (converted with the new toItemDetailJson, since the action returns real Dates) to ItemDrawerProvider, which updates the drawer and leaves edit mode, and calls router.refresh() so the cards behind update; errors show a toast plus per-field messages. The header title now prefers the loaded item's title so a rename shows immediately, and opening any item resets to view mode, discarding unsaved edits. Added the shadcn sonner and textarea components; the Toaster sits in the root layout with theme="dark" because the app hard-codes dark mode and has no next-themes provider (next-themes came in as sonner's dependency). Tests cover the schema, parseTags and getEditableFields, the action (validation failure, not found, success, database error), the query (ownership, tag clear then connect-or-create, type-specific fields, returned shape) and toItemDetailJson, bringing the suite to 50. Known gaps: orphaned tags are left in place after edits, tag names aren't case-normalised so "React" and "react" become separate global tags, and a Tag P2002 race between two concurrent saves surfaces as the generic error. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user.
+
+Delete Items
+The item drawer's red Delete button now works. It opens a shadcn AlertDialog (src/components/items/DeleteItemDialog.tsx) titled with the item's name, saying the delete also removes it from its collections and can't be undone, with Cancel and a destructive Delete. ItemDrawerActions renders the dialog in place of the old display-only button, and ItemDrawer passes the item id and title from the clicked card, so Delete works before the full item has loaded. The dialog is controlled and runs the action in a transition: while it runs, both buttons are disabled, the confirm reads "Deleting...", and Escape or an outside click can't dismiss it. On success a sonner "Item deleted" toast shows, the dialog closes, the drawer closes through the provider's existing onOpenChange (which also aborts any in-flight detail fetch), and router.refresh() updates the cards and sidebar counts; on failure an error toast shows and the dialog and drawer stay open. The deleteItem server action in src/actions/items.ts follows updateItem: requireUserId, the shared itemIdSchema, "Item not found." when nothing was deleted and a generic error in try/catch. The deleteItem query in src/lib/db/items.ts uses deleteMany on id and userId, since there's no unique (id, userId) for delete, so the ownership check and delete are one statement and another user's id deletes nothing; it returns whether a row was removed. ItemCollection rows and the implicit tag links cascade, so no migration was needed. Tests cover the action (empty id, not found, success, database error) and the query (scoped where clause, true/false from the count), bringing the suite to 56. Known gaps: deleting an item that was already deleted elsewhere shows "Item not found." and leaves the stale drawer open rather than closing it, and orphaned tags are left in place as with edits. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user.
