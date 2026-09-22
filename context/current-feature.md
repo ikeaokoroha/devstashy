@@ -1,47 +1,18 @@
-# Current Feature: File Upload with Cloudflare R2
+# Current Feature
 
-File and image upload for `file` and `image` item types, stored in Cloudflare R2.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Add an upload API route that puts files into Cloudflare R2
-- Keep all Prisma/db functions in `src/lib/db/items.ts`
-- Build a `FileUpload` component with drag-and-drop
-- Use `FileUpload` in the New Item dialog for the `file` and `image` types
-- Delete the R2 object when an item is deleted
-- Add a download proxy API route (avoids CORS issues)
-- Add a download button in the item drawer for file types
-- Show an upload progress indicator
-- Show an image preview for images, and file info (name, size) for files
+<!-- Goals and requirements -->
 
 ## Notes
 
-File constraints:
-
-| Type   | Max size | Extensions                                                                       |
-| ------ | -------- | -------------------------------------------------------------------------------- |
-| Images | 5 MB     | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`                                  |
-| Files  | 10 MB    | `.pdf`, `.txt`, `.md`, `.json`, `.yaml`, `.yml`, `.xml`, `.csv`, `.toml`, `.ini`  |
-
-Accepted MIME types:
-
-- Images: `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/svg+xml`
-- Files: `application/pdf`, `text/plain` (also `.ini`), `text/markdown`, `application/json`,
-  `application/x-yaml`, `text/yaml`, `application/xml`, `text/xml`, `text/csv`, `application/toml`
-
-Existing context this builds on:
-
-- `Item` already has `fileUrl`, `fileName`, `fileSize` and `contentType = FILE`; no migration expected.
-- `file` and `image` are Pro-only types, currently excluded from `CREATABLE_ITEM_TYPES` in
-  `src/lib/item-validation.ts` — creating them means opening that up.
-- `ItemDetailBody` already renders the file name and size in the drawer; the drawer's Copy
-  button copies `fileUrl` via `getCopyText`.
-- Uploads need an API route (not a server action) for progress tracking, per coding-standards.md.
-- R2 credentials will need new env vars, which Vercel needs set manually like the Upstash ones.
+<!-- Any extra notes -->
 
 ## History
 
@@ -133,3 +104,6 @@ Snippets and commands now show and edit their content in a Monaco editor (@monac
 
 Markdown Editor
 Prompts and notes now show and edit their content in a Write/Preview editor instead of the plain textarea and pre block, while snippets and commands keep the Monaco CodeEditor. src/components/items/MarkdownEditor.tsx renders with react-markdown 10.1 and remark-gfm 4 (tables, strikethrough, task lists, autolinks), inside the same frame as CodeEditor — the spec's bg-[#1e1e1e] and bg-[#2d2d2d] were dropped in favour of CodeEditor's bg-muted/40 frame and bg-muted/60 header, so the two editors match and still follow the theme. The header holds the tabs on the left and the same ghost copy button on the right through the shared useCopyToClipboard hook, in place of CodeEditor's window dots; the shadcn tabs component (Base UI) was added for it, with the list's background stripped and 24px triggers so the header stays as short as CodeEditor's. Edit mode opens on Write, a borderless monospace textarea using field-sizing-content between 120px and 400px (min-h-30/max-h-100 in Tailwind's 4px scale, since the CodeEditor constants can't reach a class), and read-only mode renders only the Preview tab, so there's nothing to click into. No rehype-raw, so raw HTML in stored content is inert, and a components override sends every link through the existing getSafeHref: http(s) links open in a new tab with noopener, anything else renders as plain text; tables are wrapped in an overflow-x-auto box so a wide one scrolls instead of stretching the drawer, and empty content shows "Nothing to preview". The .markdown-preview rules live in an @layer components block in globals.css using Tailwind v4 nested @apply: h1–h6 sizing with underlines on h1/h2, inline code on a white/10 tint, pre blocks on black/40, list markers and indentation (GFM task lists drop the bullet for the checkbox), a primary/40 blockquote border, blue-400 links, and bordered tables with a bg-muted/60 header. isMarkdownType in src/lib/markdown.ts names the two types, mirroring isCodeType; ContentField now branches code → markdown → textarea and links the label and error message to the textarea through htmlFor and aria-describedby, closing that gap for the new editor though not for CodeEditor, and ItemDetailBody uses the read-only editor for prompt and note content. One test covers isMarkdownType, bringing the suite to 80; the component isn't unit tested, matching CodeEditor. Known gaps: Firefox doesn't support field-sizing-content, so the Write pane stays 120px tall and scrolls there instead of growing; ContentField's textareaClassName prop now only reaches the fallback textarea, which no current type uses; and the preview has no syntax highlighting inside fenced code blocks. Verified with tsc, eslint, the Vitest suite and next build, with the .markdown-preview rules confirmed in the built CSS; the browser check was left to the user.
+
+File Upload with Cloudflare R2
+File and image items can now be created with an uploaded file, so all seven system types are creatable; the two Pro-only ones are open like everything else during development. The browser PUTs straight to R2 with a presigned URL rather than posting the file through a route handler, because Vercel caps a serverless function's request body at 4.5 MB, under the spec's 5 MB image and 10 MB file limits — a proxy route would have worked locally and failed only in production. POST /api/uploads (src/app/api/uploads/route.ts) checks the session itself since the proxy doesn't cover /api, validates, then signs a 5-minute PutObject URL keyed `{userId}/{uuid}.{ext}`, so a key says who owns it and one upload can never overwrite or be guessed from another's filename; only ContentType is signed, since a browser sets Content-Length itself and signing it risks a 403 on every upload. src/lib/r2.ts wraps the S3 client (@aws-sdk/client-s3 3.1138 with @aws-sdk/s3-request-presigner; R2 is S3-compatible and Cloudflare's own docs use this SDK), built lazily and cached like the Upstash client in rate-limit.ts, with requestChecksumCalculation and responseChecksumValidation set to WHEN_REQUIRED because the SDK's default integrity headers from v3.729 aren't in a presigned signature and fail opaquely against S3-compatible services. It also holds buildObjectKey, getPublicFileUrl, presignUpload, getObject and a best-effort deleteObject that logs rather than throws. src/lib/file-upload.ts holds the spec's constraints as data: the extension is the allowlist and the reported MIME type is only checked when it isn't blank or application/octet-stream, because browsers report .md, .toml, .yaml and .ini inconsistently and MIME-only validation would have rejected legitimate files (.csv also accepts application/vnd.ms-excel, which Windows reports); validateUpload runs in the browser for feedback and again in the route, which is the one that counts. FileUpload (src/components/items/FileUpload.tsx) is the only new client component: drag-and-drop or click to browse, XMLHttpRequest for the PUT since fetch reports no upload progress, an image preview from a local object URL so it appears instantly rather than after a round trip, a progress bar, and abort on replace, cancel or unmount. NewItemDialog renders it for file and image in place of the content field, disables Create while an upload runs, and the picker grid moved to four per row from sm up to fit seven types. getEditableFields gained a `file` flag, createItemSchema gained fileUrl/fileName/fileSize with a superRefine requiring all three, and the createItem query writes contentType FILE. Files aren't replaceable in the drawer's edit form — the spec only covered the create modal — so a file item edits title, description and tags only. GET /api/items/[id]/download streams the object back through our own origin with Content-Disposition attachment, so it saves under its original name instead of opening in a tab; the filename is reduced to printable ASCII for the plain form with the real one in the RFC 5987 filename* form, since a quote or newline would otherwise break the header. getItemFile in src/lib/db/items.ts is the light query behind it, and deleteItem now returns the deleted row's fileUrl (read first, since a delete can't return what it removed) for the action to clear from R2 after the row commits, so a storage outage can't block the delete. Two checks keep a client-supplied URL from being trusted: createItem rejects a fileUrl that doesn't resolve into our own bucket through getObjectKeyFromUrl, and the download route resolves the stored URL back to a key before fetching, so neither can be pointed at an arbitrary host. Added mid-feature after a browser check: the drawer's file section became a card with the file icon, name, size and an explicit Download button, and the filename is no longer a link — it read as a label, so making it the only clickable thing hid the action, and it pointed at the raw R2 URL, which opens rather than saves. The action bar keeps its own Download button next to Copy and Edit. Tests cover validateUpload, the r2 helpers (fresh module per test, since the config is cached), both routes and the new action and query paths, bringing the suite to 140; the components aren't unit tested, matching CodeEditor and MarkdownEditor. Known gaps: abandoning the dialog after an upload orphans the object in R2, as does deleting an account (a bucket lifecycle rule would sweep both); upload size is enforced at presign time from the declared size, not at R2, so an authenticated user could overshoot their own quota; SVG uploads are allowed per the spec and are inert on the r2.dev host, but would become an XSS vector if files were ever served from our own origin; and files are readable by anyone holding the URL, since the bucket is public and the key is the only secret. The bucket needs a CORS rule allowing PUT from each app origin, added for localhost, and Vercel needs the five R2_* variables set manually like the Upstash ones. Verified with tsc, eslint, the Vitest suite and next build; creating a file item and opening its drawer were confirmed in the browser, which is what prompted the download card, and the download button itself is compile-checked only.
