@@ -6,8 +6,16 @@ import {
   deleteItem as deleteItemQuery,
   updateItem as updateItemQuery,
 } from "@/lib/db/items";
+import { deleteObject } from "@/lib/r2";
 
 vi.mock("@/lib/session", () => ({ requireUserId: vi.fn().mockResolvedValue("user-1") }));
+vi.mock("@/lib/r2", () => ({
+  // The real one only matches URLs on the configured public host.
+  getObjectKeyFromUrl: vi.fn((url: string) =>
+    url.startsWith("https://pub-test.r2.dev/") ? url.slice("https://pub-test.r2.dev/".length) : null
+  ),
+  deleteObject: vi.fn(),
+}));
 vi.mock("@/lib/db/items", () => ({
   createItem: vi.fn(),
   updateItem: vi.fn(),
@@ -96,7 +104,48 @@ describe("createItem", () => {
       ...createInput,
       title: "useAuth Hook",
       description: null,
+      fileUrl: null,
+      fileName: null,
+      fileSize: null,
     });
+  });
+
+  it("requires a file for a file item", async () => {
+    const result = await createItem({ ...createInput, type: "image" });
+
+    expect(result.success).toBe(false);
+    expect(result.data?.fieldErrors?.fileUrl).toBe("Upload a file");
+    expect(createItemQuery).not.toHaveBeenCalled();
+  });
+
+  // The URL comes from the browser, so an item must not be able to point at
+  // anything outside our own bucket.
+  it("rejects a file URL that isn't in our bucket", async () => {
+    const result = await createItem({
+      ...createInput,
+      type: "image",
+      fileUrl: "https://evil.example.com/payload.svg",
+      fileName: "payload.svg",
+      fileSize: 1024,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.data?.fieldErrors?.fileUrl).toBe("Upload a file");
+    expect(createItemQuery).not.toHaveBeenCalled();
+  });
+
+  it("stores a file item whose URL is in our bucket", async () => {
+    vi.mocked(createItemQuery).mockResolvedValue("item-9");
+
+    const result = await createItem({
+      ...createInput,
+      type: "image",
+      fileUrl: "https://pub-test.r2.dev/user-1/abc.png",
+      fileName: "logo.png",
+      fileSize: 2048,
+    });
+
+    expect(result).toEqual({ success: true, data: { id: "item-9" } });
   });
 
   it("returns a friendly error when the database fails", async () => {
@@ -121,7 +170,7 @@ describe("deleteItem", () => {
   });
 
   it("returns not found when the user has no such item", async () => {
-    vi.mocked(deleteItemQuery).mockResolvedValue(false);
+    vi.mocked(deleteItemQuery).mockResolvedValue({ deleted: false, fileUrl: null });
 
     const result = await deleteItem("someone-elses-item");
 
@@ -129,12 +178,33 @@ describe("deleteItem", () => {
   });
 
   it("deletes the item for the signed-in user", async () => {
-    vi.mocked(deleteItemQuery).mockResolvedValue(true);
+    vi.mocked(deleteItemQuery).mockResolvedValue({ deleted: true, fileUrl: null });
 
     const result = await deleteItem("item-1");
 
     expect(result).toEqual({ success: true });
     expect(deleteItemQuery).toHaveBeenCalledWith("user-1", "item-1");
+    expect(deleteObject).not.toHaveBeenCalled();
+  });
+
+  it("removes the stored file from R2 after deleting a file item", async () => {
+    vi.mocked(deleteItemQuery).mockResolvedValue({
+      deleted: true,
+      fileUrl: "https://pub-test.r2.dev/user-1/abc.pdf",
+    });
+
+    expect(await deleteItem("item-1")).toEqual({ success: true });
+    expect(deleteObject).toHaveBeenCalledWith("user-1/abc.pdf");
+  });
+
+  it("leaves a file URL outside our bucket alone", async () => {
+    vi.mocked(deleteItemQuery).mockResolvedValue({
+      deleted: true,
+      fileUrl: "https://evil.example.com/abc.pdf",
+    });
+
+    expect(await deleteItem("item-1")).toEqual({ success: true });
+    expect(deleteObject).not.toHaveBeenCalled();
   });
 
   it("returns a friendly error when the database fails", async () => {

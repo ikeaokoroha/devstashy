@@ -33,6 +33,13 @@ export type ItemDetailJson = Omit<ItemDetail, "createdAt" | "updatedAt"> & {
   updatedAt: string;
 };
 
+// A file the browser has finished uploading to R2, ready for createItem to store.
+export interface UploadedFile {
+  fileUrl: string;
+  fileName: string;
+  fileSize: number;
+}
+
 // The drawer's fetch of the full item after a card is clicked.
 export type ItemDetailState =
   | { status: "loading" }

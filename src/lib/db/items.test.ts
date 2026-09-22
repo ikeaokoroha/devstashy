@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createItem, deleteItem, getItemDetail, updateItem } from "@/lib/db/items";
+import { createItem, deleteItem, getItemDetail, getItemFile, updateItem } from "@/lib/db/items";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
@@ -134,6 +134,9 @@ describe("createItem", () => {
     content: "export function useAuth() {}",
     language: "typescript",
     url: "https://example.com",
+    fileUrl: null,
+    fileName: null,
+    fileSize: null,
     tags: ["auth", "hooks"],
   };
 
@@ -183,6 +186,43 @@ describe("createItem", () => {
     expect(created).not.toHaveProperty("url");
   });
 
+  it("stores file items as FILE content with the uploaded file", async () => {
+    mockSystemType();
+
+    await createItem("user-1", {
+      ...data,
+      type: "image",
+      fileUrl: "https://pub-test.r2.dev/user-1/abc.png",
+      fileName: "logo.png",
+      fileSize: 2048,
+    });
+
+    const [{ data: created }] = vi.mocked(prisma.item.create).mock.calls[0];
+    expect(created).toMatchObject({
+      contentType: "FILE",
+      fileUrl: "https://pub-test.r2.dev/user-1/abc.png",
+      fileName: "logo.png",
+      fileSize: 2048,
+    });
+    expect(created).not.toHaveProperty("content");
+    expect(created).not.toHaveProperty("url");
+  });
+
+  it("ignores file fields on a type that doesn't take a file", async () => {
+    mockSystemType();
+
+    await createItem("user-1", {
+      ...data,
+      fileUrl: "https://pub-test.r2.dev/user-1/abc.png",
+      fileName: "logo.png",
+      fileSize: 2048,
+    });
+
+    const [{ data: created }] = vi.mocked(prisma.item.create).mock.calls[0];
+    expect(created).not.toHaveProperty("fileUrl");
+    expect(created).toMatchObject({ contentType: "TEXT" });
+  });
+
   it("stores links as URL content with no content or language", async () => {
     mockSystemType();
 
@@ -195,21 +235,70 @@ describe("createItem", () => {
   });
 });
 
+describe("getItemFile", () => {
+  it("scopes the lookup to the user and to file items", async () => {
+    vi.mocked(prisma.item.findFirst).mockResolvedValue(null);
+
+    expect(await getItemFile("user-1", "item-1")).toBeNull();
+    expect(prisma.item.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "item-1", userId: "user-1", contentType: "FILE" },
+      })
+    );
+  });
+
+  it("returns the stored file", async () => {
+    vi.mocked(prisma.item.findFirst).mockResolvedValue({
+      fileUrl: "https://pub-test.r2.dev/user-1/abc.pdf",
+      fileName: "notes.pdf",
+    } as never);
+
+    expect(await getItemFile("user-1", "item-1")).toEqual({
+      fileUrl: "https://pub-test.r2.dev/user-1/abc.pdf",
+      fileName: "notes.pdf",
+    });
+  });
+
+  it("returns null for a row with no file recorded", async () => {
+    vi.mocked(prisma.item.findFirst).mockResolvedValue({
+      fileUrl: null,
+      fileName: "notes.pdf",
+    } as never);
+
+    expect(await getItemFile("user-1", "item-1")).toBeNull();
+  });
+});
+
 describe("deleteItem", () => {
   it("scopes the delete to the user and reports a deleted item", async () => {
+    vi.mocked(prisma.item.findFirst).mockResolvedValue({ fileUrl: null } as never);
     vi.mocked(prisma.item.deleteMany).mockResolvedValue({ count: 1 });
 
-    const deleted = await deleteItem("user-1", "item-1");
-
-    expect(deleted).toBe(true);
+    expect(await deleteItem("user-1", "item-1")).toEqual({ deleted: true, fileUrl: null });
     expect(prisma.item.deleteMany).toHaveBeenCalledWith({
       where: { id: "item-1", userId: "user-1" },
     });
   });
 
-  it("returns false when the user has no item with that id", async () => {
+  it("returns the stored file so the caller can remove it from R2", async () => {
+    vi.mocked(prisma.item.findFirst).mockResolvedValue({
+      fileUrl: "https://pub-test.r2.dev/user-1/abc.pdf",
+    } as never);
+    vi.mocked(prisma.item.deleteMany).mockResolvedValue({ count: 1 });
+
+    expect(await deleteItem("user-1", "item-1")).toEqual({
+      deleted: true,
+      fileUrl: "https://pub-test.r2.dev/user-1/abc.pdf",
+    });
+  });
+
+  it("reports nothing deleted when the user has no item with that id", async () => {
+    vi.mocked(prisma.item.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.item.deleteMany).mockResolvedValue({ count: 0 });
 
-    expect(await deleteItem("user-1", "someone-elses-item")).toBe(false);
+    expect(await deleteItem("user-1", "someone-elses-item")).toEqual({
+      deleted: false,
+      fileUrl: null,
+    });
   });
 });

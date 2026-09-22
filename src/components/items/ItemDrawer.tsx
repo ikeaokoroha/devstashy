@@ -65,6 +65,11 @@ export function ItemDrawer({
                     isFavorite={item?.isFavorite ?? preview.isFavorite}
                     isPinned={item?.isPinned ?? preview.isPinned}
                     copyText={item ? getCopyText(item) : null}
+                    downloadUrl={
+                      item?.contentType === "FILE" && item.fileUrl
+                        ? `/api/items/${item.id}/download`
+                        : null
+                    }
                     onEdit={item ? () => onEditingChange(true) : null}
                     onDeleted={() => onOpenChange(false)}
                   />

@@ -1,7 +1,8 @@
-import { Calendar, FolderOpen, Tag, type LucideIcon } from "lucide-react";
+import { Calendar, Download, File as FileIcon, FolderOpen, Tag, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isCodeType } from "@/lib/code-editor";
 import { formatFileSize, getContentLabel, getSafeHref } from "@/lib/item-detail";
@@ -57,12 +58,44 @@ function ItemContent({ item }: { item: ItemDetailJson }) {
 
   if (item.contentType === "FILE" && item.fileName) {
     const href = item.fileUrl ? getSafeHref(item.fileUrl) : null;
-    const size = item.fileSize !== null ? ` (${formatFileSize(item.fileSize)})` : "";
     return (
-      <p>
-        {href ? <ExternalLink href={href}>{item.fileName}</ExternalLink> : item.fileName}
-        <span className="text-muted-foreground">{size}</span>
-      </p>
+      <div className="space-y-3">
+        {item.itemType.name === "image" && href && (
+          // A plain img rather than next/image: these are user uploads on the
+          // R2 public host, which would need a remotePatterns entry and would
+          // put every stored image through the optimizer for no real gain.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={href}
+            alt={item.title}
+            className="max-h-96 w-full rounded-lg border bg-muted/40 object-contain"
+          />
+        )}
+
+        {/* The file name reads as a label, so the download needs a control of
+            its own rather than leaving the name as the only thing to click. */}
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-background">
+            <FileIcon className="size-4.5 text-muted-foreground" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{item.fileName}</p>
+            {item.fileSize !== null && (
+              <p className="text-xs text-muted-foreground">{formatFileSize(item.fileSize)}</p>
+            )}
+          </div>
+          {href && (
+            <Button
+              variant="outline"
+              size="sm"
+              render={<a href={`/api/items/${item.id}/download`} download />}
+            >
+              <Download />
+              Download
+            </Button>
+          )}
+        </div>
+      </div>
     );
   }
 

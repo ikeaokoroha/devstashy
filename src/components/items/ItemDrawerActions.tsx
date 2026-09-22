@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, Pencil, Pin, Star } from "lucide-react";
+import { Check, Copy, Download, Pencil, Pin, Star } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useCopyToClipboard, type CopyStatus } from "@/hooks/use-copy-to-clipboard";
@@ -20,18 +20,21 @@ interface ItemDrawerActionsProps {
   isPinned: boolean;
   // Null while the item loads, or when it has nothing to copy.
   copyText: string | null;
+  // Set only for a loaded item that holds a file.
+  downloadUrl: string | null;
   // Null until the full item has loaded.
   onEdit: (() => void) | null;
   onDeleted: () => void;
 }
 
-// Copy, Edit and Delete work; Favorite and Pin are display only for now.
+// Copy, Download, Edit and Delete work; Favorite and Pin are display only for now.
 export function ItemDrawerActions({
   itemId,
   title,
   isFavorite,
   isPinned,
   copyText,
+  downloadUrl,
   onEdit,
   onDeleted,
 }: ItemDrawerActionsProps) {
@@ -55,6 +58,14 @@ export function ItemDrawerActions({
         {copyStatus === "copied" ? <Check /> : <Copy />}
         {COPY_LABELS[copyStatus]}
       </Button>
+      {downloadUrl && (
+        // Served from our own origin, so the browser saves the file under its
+        // original name instead of navigating to the R2 URL.
+        <Button variant="ghost" size="sm" render={<a href={downloadUrl} download />}>
+          <Download />
+          Download
+        </Button>
+      )}
 
       <Button
         variant="ghost"

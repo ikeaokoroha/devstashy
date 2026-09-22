@@ -9,12 +9,14 @@ import {
 } from "@/lib/db/items";
 import {
   createItemSchema,
+  getEditableFields,
   updateItemSchema,
   type CreateItemField,
   type CreateItemInput,
   type UpdateItemField,
   type UpdateItemInput,
 } from "@/lib/item-validation";
+import { deleteObject, getObjectKeyFromUrl } from "@/lib/r2";
 import { requireUserId } from "@/lib/session";
 import type { ActionResult } from "@/types/actions";
 import type { ItemDetail } from "@/types/items";
@@ -57,6 +59,20 @@ export async function createItem(data: CreateItemInput): Promise<ActionResult<Cr
   const parsed = createItemSchema.safeParse(data);
   if (!parsed.success) {
     return fieldErrorResult<CreateItemField>(parsed.error);
+  }
+
+  // The file URL arrives from the browser, so it's only trusted once it's been
+  // shown to point at an object in our own bucket — otherwise an item could be
+  // made to render or link to any URL at all.
+  if (getEditableFields(parsed.data.type).file) {
+    const key = parsed.data.fileUrl ? getObjectKeyFromUrl(parsed.data.fileUrl) : null;
+    if (!key) {
+      return {
+        success: false,
+        error: "Please fix the highlighted fields.",
+        data: { fieldErrors: { fileUrl: "Upload a file" } },
+      };
+    }
   }
 
   try {
@@ -110,10 +126,18 @@ export async function deleteItem(itemId: string): Promise<ActionResult> {
   }
 
   try {
-    const deleted = await deleteItemQuery(userId, parsedId.data);
+    const { deleted, fileUrl } = await deleteItemQuery(userId, parsedId.data);
     if (!deleted) {
       return { success: false, error: "Item not found." };
     }
+
+    // After the row is gone, so a storage outage can't block the delete. A
+    // failure here only leaves an orphaned object, which deleteObject logs.
+    const key = fileUrl ? getObjectKeyFromUrl(fileUrl) : null;
+    if (key) {
+      await deleteObject(key);
+    }
+
     return { success: true };
   } catch (error) {
     console.error("Failed to delete item", error);
