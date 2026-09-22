@@ -1,39 +1,18 @@
-# Current Feature: Markdown Editor
+# Current Feature
 
-A Markdown editor with Write/Preview tabs for note and prompt content, styled to match the existing CodeEditor.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Create a MarkdownEditor component with a tabbed Write/Preview interface
-- Use it instead of the textarea for notes and prompts only; snippets and commands keep CodeEditor unchanged
-- Render with react-markdown plus remark-gfm (GitHub Flavored Markdown)
-- Match the CodeEditor's dark frame and header, with a copy button in the header styled like CodeEditor's
-- Support readonly and edit modes: readonly shows only the Preview tab; edit mode defaults to Write with Preview available
-- Preview styling through a custom `.markdown-preview` CSS class:
-  - Distinct h1–h6 sizing and weight
-  - Code blocks with a dark background and monospace font; inline code with a subtle highlight
-  - Ordered/unordered lists with proper indentation and bullets
-  - Blockquotes with a left border accent
-  - Blue links with a hover state
-  - Tables with borders and a header background
-- Fluid height up to a max of 400px, matching CodeEditor behavior
-- Integration points:
-  - NewItemDialog: note and prompt content field
-  - ItemDrawer edit mode: note and prompt content field
-  - ItemDrawer view mode: readonly preview for note and prompt content
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Spec: context/features/markdown-editor-spec.md
-- The spec names bg-[#1e1e1e] for the container and bg-[#2d2d2d] for the header, but CodeEditor actually uses theme tokens (a bg-muted/40 frame with a bg-muted/60 title bar). Decide at start whether to follow the spec's hex values or match CodeEditor's tokens so the two editors look the same.
-- react-markdown and remark-gfm aren't installed yet.
-- ContentField already picks CodeEditor or TextareaField by type, so it's the natural place to route notes and prompts to MarkdownEditor. ItemDetailBody currently shows prompts and notes in a pre block.
-- react-markdown doesn't render raw HTML by default, so stored content can't inject markup; keep it that way (no rehype-raw). Links should go through the existing getSafeHref check.
-- Tailwind v4: `.markdown-preview` styles go in src/app/globals.css.
+<!-- Any extra notes -->
 
 ## History
 
@@ -122,3 +101,6 @@ The top bar's New Item button now opens a shadcn Dialog (src/components/items/Ne
 
 Code Editor
 Snippets and commands now show and edit their content in a Monaco editor (@monaco-editor/react 4.7, which loads Monaco from the jsDelivr CDN at runtime; monaco-editor 0.55.1, the CDN's version, is a dev dependency for types only). src/components/items/CodeEditor.tsx is the only new client component and pulls the editor in through next/dynamic with ssr: false, so Monaco only downloads when a snippet or command is opened or picked in a form, with a Skeleton until it's ready; the pages, cards and sidebar stay server-rendered. It sits in a macOS-style frame with red/yellow/green dots, the language and a copy button in the title bar, and uses a devstash-dark theme defined in beforeMount with transparent editor and gutter backgrounds (so the frame's bg-muted/40 shows through) and a thin 8px scrollbar in the same faint white as the app's borders. The height starts from a line-count estimate and then follows Monaco's content height (onDidContentSizeChange) up to 400px before scrolling, with a 120px minimum only in edit mode so a read-only one-liner stays one line; it's set through an inline style since it's measured at runtime, and alwaysConsumeMouseWheel is off so the drawer scrolls past the editor's edge. Read-only mode drops line numbers and the line highlight; edit mode shows line numbers and the textarea's focus ring. The drawer's view mode (ItemDetailBody) uses it read-only for snippets and commands, while prompts and notes keep the pre block; a new ContentField picks CodeEditor or TextareaField by type for ItemEditForm and NewItemDialog, and the title bar's language follows the Language field as it's typed. src/lib/code-editor.ts holds isCodeType, getEditorLanguage (aliases like ts, bash and yml mapped to Monaco ids, commands with no language as shell, unknown languages as plaintext), getEditorHeight and estimateContentHeight. The drawer Copy button's clipboard logic moved into a shared useCopyToClipboard hook in src/hooks that both copy buttons use. Added mid-feature: each /items/[type] page for a creatable type has a New button (e.g. "New Snippet") in its header that opens the New Item dialog with that type preselected, through new defaultType, label and size props on NewItemDialog (the top bar keeps the defaults) and an isCreatableItemType guard in item-validation.ts, so the Files and Images pages get no button. Tests cover the four code-editor helpers and isCreatableItemType, bringing the suite to 79; the hook and components aren't unit tested. Known gaps: the editor depends on the jsDelivr CDN being reachable, the Geist Mono font is passed to Monaco as a CSS variable and falls back to the system monospace if Monaco doesn't resolve it, and field errors under the editor aren't linked through aria-describedby. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user.
+
+Markdown Editor
+Prompts and notes now show and edit their content in a Write/Preview editor instead of the plain textarea and pre block, while snippets and commands keep the Monaco CodeEditor. src/components/items/MarkdownEditor.tsx renders with react-markdown 10.1 and remark-gfm 4 (tables, strikethrough, task lists, autolinks), inside the same frame as CodeEditor — the spec's bg-[#1e1e1e] and bg-[#2d2d2d] were dropped in favour of CodeEditor's bg-muted/40 frame and bg-muted/60 header, so the two editors match and still follow the theme. The header holds the tabs on the left and the same ghost copy button on the right through the shared useCopyToClipboard hook, in place of CodeEditor's window dots; the shadcn tabs component (Base UI) was added for it, with the list's background stripped and 24px triggers so the header stays as short as CodeEditor's. Edit mode opens on Write, a borderless monospace textarea using field-sizing-content between 120px and 400px (min-h-30/max-h-100 in Tailwind's 4px scale, since the CodeEditor constants can't reach a class), and read-only mode renders only the Preview tab, so there's nothing to click into. No rehype-raw, so raw HTML in stored content is inert, and a components override sends every link through the existing getSafeHref: http(s) links open in a new tab with noopener, anything else renders as plain text; tables are wrapped in an overflow-x-auto box so a wide one scrolls instead of stretching the drawer, and empty content shows "Nothing to preview". The .markdown-preview rules live in an @layer components block in globals.css using Tailwind v4 nested @apply: h1–h6 sizing with underlines on h1/h2, inline code on a white/10 tint, pre blocks on black/40, list markers and indentation (GFM task lists drop the bullet for the checkbox), a primary/40 blockquote border, blue-400 links, and bordered tables with a bg-muted/60 header. isMarkdownType in src/lib/markdown.ts names the two types, mirroring isCodeType; ContentField now branches code → markdown → textarea and links the label and error message to the textarea through htmlFor and aria-describedby, closing that gap for the new editor though not for CodeEditor, and ItemDetailBody uses the read-only editor for prompt and note content. One test covers isMarkdownType, bringing the suite to 80; the component isn't unit tested, matching CodeEditor. Known gaps: Firefox doesn't support field-sizing-content, so the Write pane stays 120px tall and scrolls there instead of growing; ContentField's textareaClassName prop now only reaches the fallback textarea, which no current type uses; and the preview has no syntax highlighting inside fenced code blocks. Verified with tsc, eslint, the Vitest suite and next build, with the .markdown-preview rules confirmed in the built CSS; the browser check was left to the user.
