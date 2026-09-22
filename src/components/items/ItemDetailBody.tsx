@@ -5,8 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isCodeType } from "@/lib/code-editor";
 import { formatFileSize, getContentLabel, getSafeHref } from "@/lib/item-detail";
+import { isMarkdownType } from "@/lib/markdown";
 import type { ItemDetailJson } from "@/types/items";
 import { CodeEditor } from "./CodeEditor";
+import { MarkdownEditor } from "./MarkdownEditor";
 
 // Fixed locale and UTC so the date doesn't shift with the viewer's time zone.
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -78,6 +80,10 @@ function ItemContent({ item }: { item: ItemDetailJson }) {
         readOnly
       />
     );
+  }
+
+  if (isMarkdownType(item.itemType.name)) {
+    return <MarkdownEditor value={item.content} ariaLabel={`${item.title} content`} readOnly />;
   }
 
   return (

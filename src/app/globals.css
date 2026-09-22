@@ -138,3 +138,50 @@
     @apply font-sans;
     }
 }
+
+/* Rendered Markdown for prompts and notes (MarkdownEditor's preview). */
+@layer components {
+  .markdown-preview {
+    @apply text-sm leading-relaxed break-words text-foreground;
+
+    & > :first-child { @apply mt-0; }
+    & > :last-child { @apply mb-0; }
+
+    & h1, & h2, & h3, & h4, & h5, & h6 { @apply mt-5 mb-2 font-semibold leading-tight tracking-tight; }
+    & h1 { @apply border-b pb-1.5 text-2xl font-bold; }
+    & h2 { @apply border-b pb-1 text-xl; }
+    & h3 { @apply text-lg; }
+    & h4 { @apply text-base; }
+    & h5 { @apply text-sm; }
+    & h6 { @apply text-sm text-muted-foreground; }
+
+    & p, & ul, & ol, & blockquote, & pre, & table, & hr { @apply my-3; }
+
+    & ul { @apply list-disc pl-6; }
+    & ol { @apply list-decimal pl-6; }
+    & li { @apply my-1; }
+    & li > ul, & li > ol { @apply my-1; }
+    & li::marker { @apply text-muted-foreground; }
+    /* GFM task lists: the checkbox replaces the bullet. */
+    & li:has(> input[type="checkbox"]) { @apply list-none -ml-5; }
+    & input[type="checkbox"] { @apply mr-1.5 align-middle; }
+
+    & a { @apply text-blue-400 underline underline-offset-4 decoration-blue-400/40 transition-colors hover:text-blue-300 hover:decoration-blue-300; }
+
+    & strong { @apply font-semibold; }
+
+    & code { @apply rounded bg-white/10 px-1.5 py-0.5 font-mono text-[0.85em]; }
+    & pre { @apply overflow-x-auto rounded-md border bg-black/40 p-3 font-mono text-xs leading-relaxed; }
+    & pre code { @apply bg-transparent p-0 text-[1em]; }
+
+    & blockquote { @apply border-l-4 border-l-primary/40 pl-4 text-muted-foreground italic; }
+
+    & hr { @apply border-t; }
+
+    & table { @apply w-full border-collapse text-left text-sm; }
+    & th, & td { @apply border px-3 py-1.5; }
+    & th { @apply bg-muted/60 font-semibold; }
+
+    & img { @apply max-w-full rounded-md; }
+  }
+}
