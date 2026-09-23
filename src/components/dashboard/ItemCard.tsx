@@ -2,7 +2,9 @@ import { Pin, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { CopyItemButton } from "@/components/items/CopyItemButton";
 import { OpenItemButton } from "@/components/items/OpenItemButton";
+import { getCardCopyText } from "@/lib/item-detail";
 import { getItemTypeStyle } from "@/lib/item-types";
 import type { ItemWithType } from "@/types/dashboard";
 
@@ -21,6 +23,7 @@ export function ItemCard({ item }: ItemCardProps) {
   const { icon: Icon, textClass, borderClass, bgClass } = getItemTypeStyle(
     item.itemType.name
   );
+  const copyText = getCardCopyText(item);
 
   return (
     <Card
@@ -68,12 +71,21 @@ export function ItemCard({ item }: ItemCardProps) {
         )}
       </div>
 
-      <time
-        dateTime={item.updatedAt.toISOString()}
-        className="shrink-0 text-xs text-muted-foreground"
-      >
-        {DATE_FORMATTER.format(item.updatedAt)}
-      </time>
+      {/* Date top-right, copy bottom-right: self-stretch spans the card's height,
+          which the card's items-start would otherwise collapse, so justify-between
+          reaches both corners. -mr-2 sits the ghost button in the card's padding,
+          and the date cancels it to stay flush with the edge. */}
+      <div className="-mr-2 flex shrink-0 flex-col items-end justify-between gap-1 self-stretch">
+        <time
+          dateTime={item.updatedAt.toISOString()}
+          className="mr-2 text-xs text-muted-foreground"
+        >
+          {DATE_FORMATTER.format(item.updatedAt)}
+        </time>
+        {copyText && (
+          <CopyItemButton title={item.title} text={copyText} size="icon-sm" />
+        )}
+      </div>
     </Card>
   );
 }

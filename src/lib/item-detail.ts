@@ -1,8 +1,14 @@
 import type { ItemContentType } from "@/generated/prisma/enums";
+import type { ItemWithType } from "@/types/dashboard";
 import type { ItemDetail, ItemDetailJson } from "@/types/items";
 
 const SAFE_PROTOCOLS = new Set(["http:", "https:"]);
 const FILE_SIZE_UNITS = ["B", "KB", "MB", "GB"];
+
+// Types whose copy text is the stored url rather than the content.
+const URL_ITEM_TYPES = new Set(["link"]);
+// Types whose copy text is the uploaded file's URL.
+const FILE_ITEM_TYPES = new Set(["file", "image"]);
 
 // The href to link a stored URL with, or null for anything that isn't plain
 // http(s) — a saved "javascript:" URL must never become a clickable link.
@@ -42,6 +48,18 @@ export function toItemDetailJson(item: ItemDetail): ItemDetailJson {
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
   };
+}
+
+// What a card's copy button puts on the clipboard, or null when there's nothing
+// to copy. Same rule as getCopyText, but keyed on the type name: a card carries
+// its item type, not the contentType the drawer's full item has.
+export function getCardCopyText(
+  item: Pick<ItemWithType, "content" | "url" | "fileUrl" | "itemType">
+): string | null {
+  const typeName = item.itemType.name;
+  if (URL_ITEM_TYPES.has(typeName)) return item.url || null;
+  if (FILE_ITEM_TYPES.has(typeName)) return item.fileUrl || null;
+  return item.content || null;
 }
 
 // What the drawer's Copy button puts on the clipboard, or null when there's nothing to copy.

@@ -1,9 +1,10 @@
 import { Download, Pin, Star } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { CopyItemButton } from "@/components/items/CopyItemButton";
 import { OpenItemButton } from "@/components/items/OpenItemButton";
 import { getFileIcon } from "@/lib/file-icons";
-import { formatFileSize } from "@/lib/item-detail";
+import { formatFileSize, getCardCopyText } from "@/lib/item-detail";
 import type { ItemWithType } from "@/types/dashboard";
 
 // Format in UTC so the rendered date doesn't depend on the server's time zone.
@@ -23,6 +24,7 @@ export function FileRow({ item }: FileRowProps) {
   // The title leads, with the uploaded filename underneath — dropped when it
   // only repeats the title, or when the item somehow has no file.
   const fileName = item.fileName !== item.title ? item.fileName : null;
+  const copyText = getCardCopyText(item);
 
   return (
     <div className="relative flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/40">
@@ -66,18 +68,21 @@ export function FileRow({ item }: FileRowProps) {
       </div>
 
       {/* Above the row's overlay button, which would otherwise swallow the click. */}
-      {item.fileUrl && (
-        <Button
-          variant="ghost"
-          size="icon"
-          nativeButton={false}
-          aria-label={`Download ${item.title}`}
-          className="relative z-10 shrink-0"
-          render={<a href={`/api/items/${item.id}/download`} download />}
-        >
-          <Download />
-        </Button>
-      )}
+      <div className="flex shrink-0 items-center gap-1">
+        {copyText && <CopyItemButton title={item.title} text={copyText} />}
+        {item.fileUrl && (
+          <Button
+            variant="ghost"
+            size="icon"
+            nativeButton={false}
+            aria-label={`Download ${item.title}`}
+            className="relative z-10 shrink-0"
+            render={<a href={`/api/items/${item.id}/download`} download />}
+          >
+            <Download />
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
