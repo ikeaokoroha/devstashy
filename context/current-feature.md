@@ -1,18 +1,28 @@
-# Current Feature
+# Current Feature: File List View
 
-<!-- Feature name and short description -->
+Display `/items/files` as a single-column list (like Google Drive/Dropbox) instead of grid cards.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Single-column list layout with rows
+- Each row shows: file icon (by extension), file name, file size, upload date, download button
+- Row hover highlight
+- Click row opens ItemDrawer
+- Download button triggers direct download (stop propagation)
+- Responsive: stack info vertically on mobile
 
 ## Notes
 
-<!-- Any extra notes -->
+- Spec: `context/features/file-display-spec.md`
+- Applies to the `file` type page only; `/items/images` keeps ImageGrid and the other types keep ItemGrid.
+- Download goes through the existing `GET /api/items/[id]/download` route, which sets `Content-Disposition: attachment`.
+- The click target is the existing `OpenItemButton` overlay; the download button has to sit above it (the ImageCard z-10 fix is the precedent) rather than rely on stopPropagation.
+- `ITEM_CARD_SELECT` already returns `fileUrl` and `fileName`, but not `fileSize` — a file row showing size needs it added to the select and to `ItemWithType`.
+- `formatFileSize` already exists in `src/lib/item-detail.ts`; an extension→icon map would be new.
 
 ## History
 
