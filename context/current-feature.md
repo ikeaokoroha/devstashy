@@ -1,92 +1,18 @@
-# Current Feature: Code Scan Quick Wins 2
+# Current Feature
 
-Three low-risk fixes from the code-scanner audit: two security, one packaging.
-No schema change, no migration, no UI change.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-### 1. Scope an uploaded file URL to the user who uploaded it
-
-`createItem` in `src/actions/items.ts` checks that a client-supplied `fileUrl`
-resolves into our own bucket, but not that the object belongs to the caller.
-Keys are minted as `{userId}/{uuid}.{ext}` in `buildObjectKey`, so the owner is
-already in the key and is simply not read.
-
-Today a signed-in user holding another user's public file URL can create an item
-pointing at it, and then **permanently delete that object** by deleting their own
-item — `deleteItem` reads the stored `fileUrl` back and calls `deleteObject` on
-it. That goes beyond the accepted public-bucket gap, which covers reading a URL
-you already hold, not destroying another user's file.
-
-- Require the caller's prefix in the create guard: the resolved key must start
-  with `` `${userId}/` ``, otherwise return the existing "Upload a file" field error.
-- Add the same prefix check in `deleteItem` before `deleteObject`, as defence in
-  depth for any row written before this fix.
-
-### 2. Make `getObjectKeyFromUrl` total
-
-`getObjectKeyFromUrl` in `src/lib/r2.ts` ends with `decodeURIComponent(key)`,
-which throws `URIError` on a malformed escape such as `%zz`. In `createItem`
-that call sits above the `try` block, so a crafted `fileUrl` produces an
-unhandled server-action rejection instead of the intended field error. (The
-string passes both `new URL()` and the zod `z.url({ protocol: /^https?$/ })`
-check, so validation doesn't catch it first.) The same call inside `deleteItem`
-is already wrapped, so only the create path is affected.
-
-- Wrap the decode in try/catch and return `null` on throw. Both callers already
-  handle `null`, so no call site changes.
-
-### 3. Move `shadcn` to devDependencies
-
-`shadcn` in `package.json` is a scaffolding CLI run through `npx`; nothing in
-`src/` imports it (the runtime `cn` helper comes from the separate `cn` package
-via `src/lib/utils.ts`). In `dependencies` it is installed on every production
-and CI install for no runtime benefit. `monaco-editor` and `prisma` are already
-placed correctly.
-
-- Move the entry to `devDependencies`. `npx shadcn@latest add` still works.
+<!-- Goals and requirements -->
 
 ## Notes
 
-- All three are deliberately small and independent; they land in one commit.
-- Tests: goals 1 and 2 are action and utility changes, so they need Vitest
-  coverage — a wrong-prefix key rejected in `createItem`, a malformed-escape URL
-  returning `null` from `getObjectKeyFromUrl`. Goal 3 adds no testable behaviour.
-
-### Dropped from this batch
-
-Bounding `COLLECTION_ITEM_TYPES_SELECT` in `src/lib/db/collections.ts` with a
-`take` was considered and dropped. The nested select is genuinely unbounded —
-one dashboard request loads every `ItemCollection` row for up to 21 collections
-— but a `take` samples rather than counts, and `CollectionCard` renders an icon
-for **every** distinct type the query returns, not just the dominant one. A
-collection whose older items are a different type would silently lose that
-type's icon, which is a visible correctness regression, not a cosmetic one. The
-partial win is also smaller than it looks: with only `@@index([collectionId])`
-on `ItemCollection`, Postgres still scans and sorts the collection's rows to
-take the top N, so the saving is the `Item → ItemType` join and the rows crossing
-the wire, not the scan.
-
-The exact fix is `prisma.item.groupBy({ by: ["itemTypeId"], where: { collections:
-{ some: { collectionId: { in: ids } } } }, _count: true })` — real counts, every
-type present, counting done in Postgres — at the cost of one extra query, a
-second lookup to resolve `itemTypeId` to name and colour, and a rewrite of how
-both functions assemble their results. Worth its own feature; no migration needed.
-
-### Not in scope, from the same audit
-
-- `.max()` bounds on the item schemas (including a cap on `tags`, which
-  `connectOrCreate`s into the global `Tag` table).
-- Self-hosting Monaco instead of loading it from jsDelivr with no integrity check.
-- Consolidating the create and edit item forms, and the item-type membership
-  tables spread across six modules.
-- The repeated `errorResponse`, `firstParam`, UTC date formatter and empty-state
-  helpers. The date formatter has already drifted (`FileRow` adds `year`), so
-  that one needs a decision on the intended format before consolidating.
+<!-- Any extra notes -->
 
 ## History
 
@@ -190,3 +116,6 @@ File List View
 
 Card Quick Copy
 Every item card now has a copy icon that puts the item's content on the clipboard without opening the drawer. The copy text had to be on the card already: content and url joined ITEM_CARD_SELECT and ItemWithType (the way fileUrl, fileName and fileSize did for the gallery and the file list), because fetching on click would put the clipboard write after an await, which Safari blocks — the cost, accepted, is that the dashboard and /items/[type] queries now load full item bodies, the latter still unbounded. getCardCopyText in src/lib/item-detail.ts mirrors getCopyText but branches on the item type name rather than contentType, which a card doesn't carry: content for snippet/prompt/command/note, url for a link, fileUrl for file and image, null when the field is empty, and content as the fallback for an unknown type. CopyItemButton (src/components/items/CopyItemButton.tsx) is the only new client component, so all three card shapes stay server-rendered: a ghost icon button on the shared useCopyToClipboard hook, cycling Copy → Check → X with the state also in aria-label and title ("Copied", "Copy failed") since an icon-only button has no room for the drawer's text label, always visible at 70% opacity rather than hover-only so it's reachable on touch, and rendered only when there's something to copy. It sits above OpenItemButton's overlay with relative z-10 — the fix the image gallery found and the file list reused — so copying doesn't open the drawer. Placement went two rounds: first grouped with the date in the top right, then moved on request, so ItemCard's date and copy now split a right-hand column stretched with self-stretch (the card's items-start would otherwise collapse it) and justify-between, holding the top-right and bottom-right corners with no absolute positioning, which keeps the button clear of a description or a wrapping tag row. It drops to icon-sm there, because at 32px a title-only card — whose height comes from the 40px type-icon tile — would have grown ~8px taller than its neighbours. FileRow keeps its copy beside Download in a gap-1 group (a single centred row has no bottom to move to) and ImageCard keeps its at the end of the footer, which is already the tile's bottom-right; overlaying the thumbnail was rejected since it would cover the image and fight the hover zoom. Five tests cover getCardCopyText, including that each type ignores the fields it doesn't use, bringing the suite to 149; the button isn't unit tested, matching CodeEditor, MarkdownEditor and the other card components. Known gaps: a file or image card copies the raw R2 URL, readable by anyone holding it under the public-bucket gap, with Download still the way to get the file itself; and the full-body card queries make the unbounded /items/[type] query heavier for a user with many long snippets. Verified with tsc, eslint, the Vitest suite and next build, and confirmed in the browser.
+
+Code Scan Quick Wins 2
+Three low-risk fixes from the second code-scanner audit, with no schema change, no migration and nothing user-visible. createItem only checked that a client-supplied fileUrl resolved into our own bucket, not that the object belonged to the caller; since the bucket is public and the key is the only secret, a signed-in user holding another user's file URL could attach it to an item and then permanently delete that object from R2 by deleting their own item, which goes past the accepted public-bucket gap (that covers reading a URL you already hold, not destroying someone else's file). Keys are minted as {userId}/{uuid}.{ext} by buildObjectKey, so the owner was already in the key and simply not read. getOwnedObjectKeyFromUrl in src/lib/r2.ts now wraps getObjectKeyFromUrl with the `${userId}/` prefix check and lives next to buildObjectKey so the layout convention stays in one place rather than being inlined at each call site; createItem uses it, so a foreign key fails the existing "Upload a file" field error, and deleteItem uses it too, so a row written before this fix keeps the item delete but leaves the object alone. getObjectKeyFromUrl also ended with a bare decodeURIComponent, which throws URIError on a malformed escape like %zz — a string that passes both new URL() and the zod z.url({ protocol: /^https?$/ }) check — and in createItem that call sits above the try block, so a crafted fileUrl produced an unhandled server-action rejection instead of a field error; it now returns null, which both callers already handled. Third, shadcn moved to devDependencies: it is a scaffolding CLI run through npx and nothing in src/ imports it (the runtime cn helper comes from the separate cn package), so it was being installed on every production and CI install for no runtime benefit. The @/lib/r2 mock in src/actions/items.test.ts had to follow the renamed export and was made to mirror the real prefix logic rather than stub it out; new tests cover the malformed escape, an owned key, another user's key, a lookalike prefix (user-10 against user-1), an out-of-bucket URL, createItem rejecting another user's URL and deleteItem leaving another user's object in place, bringing the suite to 156. Considered and dropped: bounding COLLECTION_ITEM_TYPES_SELECT in src/lib/db/collections.ts with a take. The nested select is genuinely unbounded — one dashboard request loads every ItemCollection row for up to 21 collections — but a take samples rather than counts, and CollectionCard renders an icon for every distinct type the query returns, not just the dominant one, so a collection whose older items are a different type would silently lose that type's icon; that is a visible correctness regression rather than the cosmetic one it first looked like. The partial win is also smaller than it appears, since with only @@index([collectionId]) on ItemCollection Postgres still scans and sorts the collection's rows to take the top N, leaving only the Item → ItemType join and the rows crossing the wire as the saving. The exact fix is a prisma.item.groupBy on itemTypeId filtered by collection id, which needs one extra query, a second lookup to resolve itemTypeId to name and colour, and a rewrite of how both functions assemble their results — worth its own feature, still with no migration. Known gaps: GET /api/items/[id]/download still resolves the stored URL through the unscoped getObjectKeyFromUrl, so a row written before this fix that holds another user's key would still be proxied for download — the read side of the same issue, left alone as outside the agreed scope. Also still open from the same audit: no .max() bounds on the item schemas (including a cap on tags, which connectOrCreates into the global Tag table), Monaco loading from jsDelivr with no integrity check, the duplicated create and edit item forms, the item-type membership tables spread across six modules, and the repeated errorResponse, firstParam, UTC date formatter and empty-state helpers — the date formatter has already drifted, since FileRow adds year, so that one needs a decision on the intended format first. Verified with tsc, eslint, the Vitest suite and next build; nothing is user-visible, so the browser check is limited to confirming a file upload still works end to end.
