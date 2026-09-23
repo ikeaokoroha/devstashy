@@ -1,37 +1,18 @@
 # Current Feature
 
-Card Quick Copy — a copy icon on every item card that puts the item's content,
-URL or file URL on the clipboard without opening the drawer.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- A copy button on all three card shapes: `ItemCard` (snippet/prompt/command/note/link),
-  `FileRow` (files) and `ImageCard` (images).
-- One click copies: content for the text types, `url` for a link, `fileUrl` for
-  file and image — the same text the drawer's Copy button uses.
-- Confirmation on the button itself (the `Check` icon), reusing the existing
-  `useCopyToClipboard` hook, with no toast.
-- Always visible at muted opacity, so it's reachable on touch as well as hover.
-- Bottom-right of the card: on `ItemCard` the date and copy split a stretched
-  right-hand column, top and bottom corner. `FileRow` (one row, no bottom) and
-  `ImageCard` (end of the footer, already the tile's bottom-right) keep theirs.
-- Hidden when the item has nothing to copy.
-- The cards stay server components; only the button is a client island.
+<!-- Goals and requirements -->
 
 ## Notes
 
-- The copy text has to be on the card already: `ITEM_CARD_SELECT` gains `content`
-  and `url`. Fetching on click would put the clipboard write after an `await`,
-  which Safari blocks. Cost accepted: the dashboard and `/items/[type]` queries
-  now load full item bodies.
-- The button sits above `OpenItemButton`'s overlay with `relative z-10`, the same
-  way `FileRow`'s download button does, so clicking copy doesn't open the drawer.
-- `getCardCopyText` mirrors `getCopyText` but branches on the item type name,
-  since cards don't carry `contentType`.
+<!-- Any extra notes -->
 
 ## History
 
@@ -132,3 +113,6 @@ Image Gallery View
 
 File List View
 /items/files now renders a Drive-style single-column list, so all three list shapes are in place: thumbnails for images, rows for files, cards for everything else. FileRow (src/components/items/FileRow.tsx) is a server component built like ItemCard — an OpenItemButton overlay covers the row so the whole thing opens the drawer while the row itself stays server-rendered — with an extension icon in a bordered tile, the item title on top, the uploaded filename muted underneath, then size · date and a download button. The filename line is dropped when it only repeats the title, so an item saved under its own filename stays one line; the title leads rather than the filename because a stored name like a8f3.pdf says less than what the user called it. The spec's "stop propagation" didn't apply: the click target is the absolutely positioned overlay, not a parent handler, so the download button sits above it with relative z-10 (the ImageCard fix from the gallery), which also keeps the row out of client components. The button points at the existing GET /api/items/[id]/download rather than the raw R2 URL, since that route sets Content-Disposition attachment and saves under the original name, and it carries nativeButton={false} like the drawer's two download anchors. FileList (src/components/items/FileList.tsx) wraps the rows in a divide-y bordered container and reuses the dashed empty state both grids render; the page at src/app/(app)/items/[type]/page.tsx now branches three ways — image to ImageGrid, file to FileList, everything else to ItemGrid. getFileIcon in src/lib/file-icons.ts maps an extension to a Lucide icon (FileText for pdf/txt/md, FileJson, FileCode for xml/yaml/toml/ini, FileSpreadsheet for csv, FileImage, File as the fallback), reusing getFileExtension from file-upload.ts rather than parsing names a second time; it returns { icon } rather than the icon itself because binding a call's return to a capitalized name trips react-hooks/static-components ("Cannot create components during render") at the JSX site — a false positive here, since the map values are module-level — and destructuring is how ItemCard and ImageCard already consume getItemTypeStyle, so matching that shape fixes it without a suppression. fileSize joined ITEM_CARD_SELECT and ItemWithType the way fileUrl and fileName did for the gallery, null for every non-file type. Row details stack on a narrow list and sit inline from @md up, following the @container approach of both grids rather than viewport breakpoints, since the collapsible sidebar changes the available width at the same screen size. Four tests cover getFileIcon, including one that walks every extension the upload rules allow and asserts none falls through to the generic icon, so adding an extension without an icon fails the suite; the components aren't unit tested, matching ImageCard and ImageGrid. The suite is at 144. Two rounds of adjustment came after the first browser check: the title and filename were swapped so the title leads (which caught a stale `name` variable in the download button's aria-label that had silently resolved to the global window.name instead of erroring), and padding, icon tile, text, marks and the download button were each bumped one step, with the title dropping text-sm to inherit the base size the way ItemCard's heading does. Known gaps: the component name FileList shadows the DOM's FileList type inside files that import it; a file item with no upload shows the row with no download button rather than being filtered out; and the list has no sorting or pagination, inheriting getItemsByType's unbounded query. Verified with tsc, eslint, the Vitest suite and next build, with the @md container rule confirmed in the built CSS.
+
+Card Quick Copy
+Every item card now has a copy icon that puts the item's content on the clipboard without opening the drawer. The copy text had to be on the card already: content and url joined ITEM_CARD_SELECT and ItemWithType (the way fileUrl, fileName and fileSize did for the gallery and the file list), because fetching on click would put the clipboard write after an await, which Safari blocks — the cost, accepted, is that the dashboard and /items/[type] queries now load full item bodies, the latter still unbounded. getCardCopyText in src/lib/item-detail.ts mirrors getCopyText but branches on the item type name rather than contentType, which a card doesn't carry: content for snippet/prompt/command/note, url for a link, fileUrl for file and image, null when the field is empty, and content as the fallback for an unknown type. CopyItemButton (src/components/items/CopyItemButton.tsx) is the only new client component, so all three card shapes stay server-rendered: a ghost icon button on the shared useCopyToClipboard hook, cycling Copy → Check → X with the state also in aria-label and title ("Copied", "Copy failed") since an icon-only button has no room for the drawer's text label, always visible at 70% opacity rather than hover-only so it's reachable on touch, and rendered only when there's something to copy. It sits above OpenItemButton's overlay with relative z-10 — the fix the image gallery found and the file list reused — so copying doesn't open the drawer. Placement went two rounds: first grouped with the date in the top right, then moved on request, so ItemCard's date and copy now split a right-hand column stretched with self-stretch (the card's items-start would otherwise collapse it) and justify-between, holding the top-right and bottom-right corners with no absolute positioning, which keeps the button clear of a description or a wrapping tag row. It drops to icon-sm there, because at 32px a title-only card — whose height comes from the 40px type-icon tile — would have grown ~8px taller than its neighbours. FileRow keeps its copy beside Download in a gap-1 group (a single centred row has no bottom to move to) and ImageCard keeps its at the end of the footer, which is already the tile's bottom-right; overlaying the thumbnail was rejected since it would cover the image and fight the hover zoom. Five tests cover getCardCopyText, including that each type ignores the fields it doesn't use, bringing the suite to 149; the button isn't unit tested, matching CodeEditor, MarkdownEditor and the other card components. Known gaps: a file or image card copies the raw R2 URL, readable by anyone holding it under the public-bucket gap, with Download still the way to get the file itself; and the full-body card queries make the unbounded /items/[type] query heavier for a user with many long snippets. Verified with tsc, eslint, the Vitest suite and next build, and confirmed in the browser.
