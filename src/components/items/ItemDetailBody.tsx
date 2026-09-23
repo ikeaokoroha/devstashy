@@ -88,6 +88,7 @@ function ItemContent({ item }: { item: ItemDetailJson }) {
             <Button
               variant="outline"
               size="sm"
+              nativeButton={false}
               render={<a href={`/api/items/${item.id}/download`} download />}
             >
               <Download />

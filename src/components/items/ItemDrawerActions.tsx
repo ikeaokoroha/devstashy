@@ -61,7 +61,12 @@ export function ItemDrawerActions({
       {downloadUrl && (
         // Served from our own origin, so the browser saves the file under its
         // original name instead of navigating to the R2 URL.
-        <Button variant="ghost" size="sm" render={<a href={downloadUrl} download />}>
+        <Button
+          variant="ghost"
+          size="sm"
+          nativeButton={false}
+          render={<a href={downloadUrl} download />}
+        >
           <Download />
           Download
         </Button>

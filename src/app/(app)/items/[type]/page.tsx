@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { ImageGrid } from "@/components/items/ImageGrid";
 import { ItemGrid } from "@/components/items/ItemGrid";
 import { NewItemDialog } from "@/components/items/NewItemDialog";
 import { getItemsByType } from "@/lib/db/items";
@@ -32,6 +33,7 @@ export default async function ItemsByTypePage({ params }: PageProps<"/items/[typ
   const items = await getItemsByType(userId, typeName);
   const { icon: Icon, textClass, bgClass } = getItemTypeStyle(typeName);
   const label = capitalize(getItemTypeSlug(typeName));
+  const emptyMessage = `No ${label.toLowerCase()} yet.`;
 
   return (
     <div className="space-y-8">
@@ -58,7 +60,12 @@ export default async function ItemsByTypePage({ params }: PageProps<"/items/[typ
         )}
       </div>
 
-      <ItemGrid items={items} emptyMessage={`No ${label.toLowerCase()} yet.`} />
+      {/* Images get thumbnail tiles; every other type keeps the card rows. */}
+      {typeName === "image" ? (
+        <ImageGrid items={items} emptyMessage={emptyMessage} />
+      ) : (
+        <ItemGrid items={items} emptyMessage={emptyMessage} />
+      )}
     </div>
   );
 }

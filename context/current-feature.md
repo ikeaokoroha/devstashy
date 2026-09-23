@@ -1,18 +1,31 @@
-# Current Feature
+# Current Feature: Image Gallery View
 
-<!-- Feature name and short description -->
+The /items/images page shows a gallery of image thumbnail cards instead of the regular item card.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Add an image thumbnail card that replaces ItemCard for image items
+- Lay the images out as a grid/gallery, up to 3 columns
+- Show the thumbnail at a 16:9 aspect ratio (`aspect-video`)
+- Fill the card with `object-cover`, cropping the edges if needed
+- Subtle hover zoom: 5% scale over a 300ms transition
 
 ## Notes
 
-<!-- Any extra notes -->
+- Source spec: context/features/image-display-spec.md
+- ItemGrid (src/components/items/ItemGrid.tsx) currently renders ItemCard in an
+  `@container` grid that goes to 2 columns at `@xl` and 3 at `@4xl`; the gallery
+  can follow the same container-query approach so the collapsible sidebar doesn't
+  squash the cards.
+- ITEM_CARD_SELECT and ItemWithType carry no file fields, so the card select and
+  type need fileUrl (plus fileName for alt text) for thumbnails to render.
+- Images are stored in public R2, so next/image needs the r2.dev host in
+  `images.remotePatterns` — or use a plain `img` and skip the optimizer.
+- Only the image type gets the gallery; file items and every other type keep ItemCard.
 
 ## History
 
