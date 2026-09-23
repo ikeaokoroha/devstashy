@@ -16,7 +16,7 @@ import {
   type UpdateItemField,
   type UpdateItemInput,
 } from "@/lib/item-validation";
-import { deleteObject, getObjectKeyFromUrl } from "@/lib/r2";
+import { deleteObject, getOwnedObjectKeyFromUrl } from "@/lib/r2";
 import { requireUserId } from "@/lib/session";
 import type { ActionResult } from "@/types/actions";
 import type { ItemDetail } from "@/types/items";
@@ -62,10 +62,13 @@ export async function createItem(data: CreateItemInput): Promise<ActionResult<Cr
   }
 
   // The file URL arrives from the browser, so it's only trusted once it's been
-  // shown to point at an object in our own bucket — otherwise an item could be
-  // made to render or link to any URL at all.
+  // shown to point at an object under this user's own prefix — otherwise an item
+  // could be made to render any URL at all, or to carry another user's object,
+  // which deleteItem would later delete from R2 on their behalf.
   if (getEditableFields(parsed.data.type).file) {
-    const key = parsed.data.fileUrl ? getObjectKeyFromUrl(parsed.data.fileUrl) : null;
+    const key = parsed.data.fileUrl
+      ? getOwnedObjectKeyFromUrl(parsed.data.fileUrl, userId)
+      : null;
     if (!key) {
       return {
         success: false,
@@ -133,7 +136,10 @@ export async function deleteItem(itemId: string): Promise<ActionResult> {
 
     // After the row is gone, so a storage outage can't block the delete. A
     // failure here only leaves an orphaned object, which deleteObject logs.
-    const key = fileUrl ? getObjectKeyFromUrl(fileUrl) : null;
+    // The owner check is repeated here because a row written before createItem
+    // enforced it could still hold someone else's key; the object is then left
+    // in place rather than deleted.
+    const key = fileUrl ? getOwnedObjectKeyFromUrl(fileUrl, userId) : null;
     if (key) {
       await deleteObject(key);
     }

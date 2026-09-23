@@ -105,4 +105,38 @@ describe("getObjectKeyFromUrl", () => {
 
     expect(getObjectKeyFromUrl("https://pub-test.r2.dev/user-1/a%20b.png")).toBe("user-1/a b.png");
   });
+
+  it("returns null for a malformed escape rather than throwing", async () => {
+    const { getObjectKeyFromUrl } = await importR2(CONFIGURED);
+
+    expect(getObjectKeyFromUrl("https://pub-test.r2.dev/user-1/%zz.png")).toBeNull();
+  });
+});
+
+describe("getOwnedObjectKeyFromUrl", () => {
+  it("returns the key when it sits under the user's prefix", async () => {
+    const { getOwnedObjectKeyFromUrl } = await importR2(CONFIGURED);
+
+    expect(getOwnedObjectKeyFromUrl("https://pub-test.r2.dev/user-1/abc.png", "user-1")).toBe(
+      "user-1/abc.png"
+    );
+  });
+
+  it("rejects another user's key in our own bucket", async () => {
+    const { getOwnedObjectKeyFromUrl } = await importR2(CONFIGURED);
+
+    expect(getOwnedObjectKeyFromUrl("https://pub-test.r2.dev/user-2/abc.png", "user-1")).toBeNull();
+  });
+
+  it("rejects a prefix that only starts with the user id", async () => {
+    const { getOwnedObjectKeyFromUrl } = await importR2(CONFIGURED);
+
+    expect(getOwnedObjectKeyFromUrl("https://pub-test.r2.dev/user-10/abc.png", "user-1")).toBeNull();
+  });
+
+  it("rejects a URL outside the bucket", async () => {
+    const { getOwnedObjectKeyFromUrl } = await importR2(CONFIGURED);
+
+    expect(getOwnedObjectKeyFromUrl("https://evil.example.com/user-1/abc.png", "user-1")).toBeNull();
+  });
 });

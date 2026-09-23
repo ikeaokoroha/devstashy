@@ -10,10 +10,13 @@ import { deleteObject } from "@/lib/r2";
 
 vi.mock("@/lib/session", () => ({ requireUserId: vi.fn().mockResolvedValue("user-1") }));
 vi.mock("@/lib/r2", () => ({
-  // The real one only matches URLs on the configured public host.
-  getObjectKeyFromUrl: vi.fn((url: string) =>
-    url.startsWith("https://pub-test.r2.dev/") ? url.slice("https://pub-test.r2.dev/".length) : null
-  ),
+  // The real one only matches URLs on the configured public host, and only
+  // those under the user's own key prefix.
+  getOwnedObjectKeyFromUrl: vi.fn((url: string, userId: string) => {
+    if (!url.startsWith("https://pub-test.r2.dev/")) return null;
+    const key = url.slice("https://pub-test.r2.dev/".length);
+    return key.startsWith(`${userId}/`) ? key : null;
+  }),
   deleteObject: vi.fn(),
 }));
 vi.mock("@/lib/db/items", () => ({
@@ -134,6 +137,22 @@ describe("createItem", () => {
     expect(createItemQuery).not.toHaveBeenCalled();
   });
 
+  // The bucket is public, so a signed-in user can hold another user's file URL.
+  // Attaching it to an item would let them delete that object by deleting the item.
+  it("rejects a file URL belonging to another user", async () => {
+    const result = await createItem({
+      ...createInput,
+      type: "image",
+      fileUrl: "https://pub-test.r2.dev/user-2/abc.png",
+      fileName: "abc.png",
+      fileSize: 1024,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.data?.fieldErrors?.fileUrl).toBe("Upload a file");
+    expect(createItemQuery).not.toHaveBeenCalled();
+  });
+
   it("stores a file item whose URL is in our bucket", async () => {
     vi.mocked(createItemQuery).mockResolvedValue("item-9");
 
@@ -201,6 +220,18 @@ describe("deleteItem", () => {
     vi.mocked(deleteItemQuery).mockResolvedValue({
       deleted: true,
       fileUrl: "https://evil.example.com/abc.pdf",
+    });
+
+    expect(await deleteItem("item-1")).toEqual({ success: true });
+    expect(deleteObject).not.toHaveBeenCalled();
+  });
+
+  // A row written before createItem checked ownership could still hold another
+  // user's key. The item goes, the object stays.
+  it("leaves another user's object in place", async () => {
+    vi.mocked(deleteItemQuery).mockResolvedValue({
+      deleted: true,
+      fileUrl: "https://pub-test.r2.dev/user-2/abc.pdf",
     });
 
     expect(await deleteItem("item-1")).toEqual({ success: true });

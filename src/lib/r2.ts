@@ -109,7 +109,27 @@ export function getObjectKeyFromUrl(fileUrl: string): string | null {
   }
 
   const key = fileUrl.slice(prefix.length);
-  return key ? decodeURIComponent(key) : null;
+  if (!key) {
+    return null;
+  }
+
+  // decodeURIComponent throws on a malformed escape like "%zz", which neither
+  // new URL() nor the zod url check rejects. Callers treat null as "not ours".
+  try {
+    return decodeURIComponent(key);
+  } catch {
+    return null;
+  }
+}
+
+// The object a stored file URL points at, but only when it sits under the
+// user's own prefix. buildObjectKey puts the owner in the key, so a URL that
+// belongs to someone else is rejected here rather than being trusted because it
+// happens to live in our bucket — otherwise one user could attach another's
+// file to an item and then delete the object by deleting that item.
+export function getOwnedObjectKeyFromUrl(fileUrl: string, userId: string): string | null {
+  const key = getObjectKeyFromUrl(fileUrl);
+  return key?.startsWith(`${userId}/`) ? key : null;
 }
 
 // A short-lived URL the browser can PUT the file to directly, bypassing the

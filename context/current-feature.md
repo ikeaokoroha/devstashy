@@ -1,18 +1,92 @@
-# Current Feature
+# Current Feature: Code Scan Quick Wins 2
 
-<!-- Feature name and short description -->
+Three low-risk fixes from the code-scanner audit: two security, one packaging.
+No schema change, no migration, no UI change.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+### 1. Scope an uploaded file URL to the user who uploaded it
+
+`createItem` in `src/actions/items.ts` checks that a client-supplied `fileUrl`
+resolves into our own bucket, but not that the object belongs to the caller.
+Keys are minted as `{userId}/{uuid}.{ext}` in `buildObjectKey`, so the owner is
+already in the key and is simply not read.
+
+Today a signed-in user holding another user's public file URL can create an item
+pointing at it, and then **permanently delete that object** by deleting their own
+item — `deleteItem` reads the stored `fileUrl` back and calls `deleteObject` on
+it. That goes beyond the accepted public-bucket gap, which covers reading a URL
+you already hold, not destroying another user's file.
+
+- Require the caller's prefix in the create guard: the resolved key must start
+  with `` `${userId}/` ``, otherwise return the existing "Upload a file" field error.
+- Add the same prefix check in `deleteItem` before `deleteObject`, as defence in
+  depth for any row written before this fix.
+
+### 2. Make `getObjectKeyFromUrl` total
+
+`getObjectKeyFromUrl` in `src/lib/r2.ts` ends with `decodeURIComponent(key)`,
+which throws `URIError` on a malformed escape such as `%zz`. In `createItem`
+that call sits above the `try` block, so a crafted `fileUrl` produces an
+unhandled server-action rejection instead of the intended field error. (The
+string passes both `new URL()` and the zod `z.url({ protocol: /^https?$/ })`
+check, so validation doesn't catch it first.) The same call inside `deleteItem`
+is already wrapped, so only the create path is affected.
+
+- Wrap the decode in try/catch and return `null` on throw. Both callers already
+  handle `null`, so no call site changes.
+
+### 3. Move `shadcn` to devDependencies
+
+`shadcn` in `package.json` is a scaffolding CLI run through `npx`; nothing in
+`src/` imports it (the runtime `cn` helper comes from the separate `cn` package
+via `src/lib/utils.ts`). In `dependencies` it is installed on every production
+and CI install for no runtime benefit. `monaco-editor` and `prisma` are already
+placed correctly.
+
+- Move the entry to `devDependencies`. `npx shadcn@latest add` still works.
 
 ## Notes
 
-<!-- Any extra notes -->
+- All three are deliberately small and independent; they land in one commit.
+- Tests: goals 1 and 2 are action and utility changes, so they need Vitest
+  coverage — a wrong-prefix key rejected in `createItem`, a malformed-escape URL
+  returning `null` from `getObjectKeyFromUrl`. Goal 3 adds no testable behaviour.
+
+### Dropped from this batch
+
+Bounding `COLLECTION_ITEM_TYPES_SELECT` in `src/lib/db/collections.ts` with a
+`take` was considered and dropped. The nested select is genuinely unbounded —
+one dashboard request loads every `ItemCollection` row for up to 21 collections
+— but a `take` samples rather than counts, and `CollectionCard` renders an icon
+for **every** distinct type the query returns, not just the dominant one. A
+collection whose older items are a different type would silently lose that
+type's icon, which is a visible correctness regression, not a cosmetic one. The
+partial win is also smaller than it looks: with only `@@index([collectionId])`
+on `ItemCollection`, Postgres still scans and sorts the collection's rows to
+take the top N, so the saving is the `Item → ItemType` join and the rows crossing
+the wire, not the scan.
+
+The exact fix is `prisma.item.groupBy({ by: ["itemTypeId"], where: { collections:
+{ some: { collectionId: { in: ids } } } }, _count: true })` — real counts, every
+type present, counting done in Postgres — at the cost of one extra query, a
+second lookup to resolve `itemTypeId` to name and colour, and a rewrite of how
+both functions assemble their results. Worth its own feature; no migration needed.
+
+### Not in scope, from the same audit
+
+- `.max()` bounds on the item schemas (including a cap on `tags`, which
+  `connectOrCreate`s into the global `Tag` table).
+- Self-hosting Monaco instead of loading it from jsDelivr with no integrity check.
+- Consolidating the create and edit item forms, and the item-type membership
+  tables spread across six modules.
+- The repeated `errorResponse`, `firstParam`, UTC date formatter and empty-state
+  helpers. The date formatter has already drifted (`FileRow` adds `year`), so
+  that one needs a decision on the intended format before consolidating.
 
 ## History
 
