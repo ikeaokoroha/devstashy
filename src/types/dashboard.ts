@@ -51,9 +51,11 @@ export interface ItemWithType {
   isFavorite: boolean;
   isPinned: boolean;
   updatedAt: Date;
-  // Null for every type but file and image; the gallery's thumbnails read them.
+  // Null for every type but file and image; the gallery's thumbnails and the
+  // file list's rows read them.
   fileUrl: string | null;
   fileName: string | null;
+  fileSize: number | null;
   tags: string[];
   itemType: CollectionItemType;
 }

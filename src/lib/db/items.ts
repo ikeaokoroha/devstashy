@@ -10,7 +10,8 @@ import type { ItemStats, ItemTypeWithCount, ItemWithType } from "@/types/dashboa
 import type { ItemDetail } from "@/types/items";
 
 // Only the fields the dashboard item cards render. The file fields are here for
-// the image gallery's thumbnails; they're null for every non-file type.
+// the image gallery's thumbnails and the file list's rows; they're null for
+// every non-file type.
 const ITEM_CARD_SELECT = {
   id: true,
   title: true,
@@ -20,6 +21,7 @@ const ITEM_CARD_SELECT = {
   updatedAt: true,
   fileUrl: true,
   fileName: true,
+  fileSize: true,
   itemType: { select: { id: true, name: true } },
   tags: { select: { name: true }, orderBy: { name: "asc" } },
 } satisfies Prisma.ItemSelect;

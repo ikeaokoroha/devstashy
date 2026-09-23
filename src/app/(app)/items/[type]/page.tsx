@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { FileList } from "@/components/items/FileList";
 import { ImageGrid } from "@/components/items/ImageGrid";
 import { ItemGrid } from "@/components/items/ItemGrid";
 import { NewItemDialog } from "@/components/items/NewItemDialog";
@@ -60,9 +61,12 @@ export default async function ItemsByTypePage({ params }: PageProps<"/items/[typ
         )}
       </div>
 
-      {/* Images get thumbnail tiles; every other type keeps the card rows. */}
+      {/* Images get thumbnail tiles and files a Drive-style list; every other
+          type keeps the card rows. */}
       {typeName === "image" ? (
         <ImageGrid items={items} emptyMessage={emptyMessage} />
+      ) : typeName === "file" ? (
+        <FileList items={items} emptyMessage={emptyMessage} />
       ) : (
         <ItemGrid items={items} emptyMessage={emptyMessage} />
       )}
