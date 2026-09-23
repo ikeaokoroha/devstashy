@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatFileSize,
+  getCardCopyText,
   getContentLabel,
   getCopyText,
   getSafeHref,
@@ -58,6 +59,44 @@ describe("getCopyText", () => {
   it("returns null when there is nothing to copy", () => {
     expect(getCopyText({ ...empty, contentType: "TEXT", content: "" })).toBeNull();
     expect(getCopyText({ ...empty, contentType: "URL", content: "ignored" })).toBeNull();
+  });
+});
+
+describe("getCardCopyText", () => {
+  type CardFields = { content: string | null; url: string | null; fileUrl: string | null };
+  const empty: CardFields = { content: null, url: null, fileUrl: null };
+  const card = (typeName: string, fields: Partial<CardFields> = {}) => ({
+    ...empty,
+    ...fields,
+    itemType: { id: `type-${typeName}`, name: typeName },
+  });
+
+  it("copies the content for the text types", () => {
+    for (const typeName of ["snippet", "prompt", "command", "note"]) {
+      expect(getCardCopyText(card(typeName, { content: "npm run dev" }))).toBe("npm run dev");
+    }
+  });
+
+  it("copies the url for a link and the file URL for file and image", () => {
+    expect(getCardCopyText(card("link", { url: "https://nextjs.org" }))).toBe("https://nextjs.org");
+    expect(getCardCopyText(card("file", { fileUrl: "https://r2.dev/a.pdf" }))).toBe("https://r2.dev/a.pdf");
+    expect(getCardCopyText(card("image", { fileUrl: "https://r2.dev/a.png" }))).toBe("https://r2.dev/a.png");
+  });
+
+  it("ignores the fields the type doesn't use", () => {
+    expect(getCardCopyText(card("link", { content: "ignored" }))).toBeNull();
+    expect(getCardCopyText(card("image", { content: "ignored", url: "ignored" }))).toBeNull();
+    expect(getCardCopyText(card("snippet", { url: "https://ignored.dev" }))).toBeNull();
+  });
+
+  it("returns null when there is nothing to copy", () => {
+    expect(getCardCopyText(card("snippet"))).toBeNull();
+    expect(getCardCopyText(card("snippet", { content: "" }))).toBeNull();
+    expect(getCardCopyText(card("link"))).toBeNull();
+  });
+
+  it("falls back to the content for an unknown type", () => {
+    expect(getCardCopyText(card("diagram", { content: "graph TD" }))).toBe("graph TD");
   });
 });
 

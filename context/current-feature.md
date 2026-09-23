@@ -1,18 +1,37 @@
 # Current Feature
 
-<!-- Feature name and short description -->
+Card Quick Copy — a copy icon on every item card that puts the item's content,
+URL or file URL on the clipboard without opening the drawer.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- A copy button on all three card shapes: `ItemCard` (snippet/prompt/command/note/link),
+  `FileRow` (files) and `ImageCard` (images).
+- One click copies: content for the text types, `url` for a link, `fileUrl` for
+  file and image — the same text the drawer's Copy button uses.
+- Confirmation on the button itself (the `Check` icon), reusing the existing
+  `useCopyToClipboard` hook, with no toast.
+- Always visible at muted opacity, so it's reachable on touch as well as hover.
+- Bottom-right of the card: on `ItemCard` the date and copy split a stretched
+  right-hand column, top and bottom corner. `FileRow` (one row, no bottom) and
+  `ImageCard` (end of the footer, already the tile's bottom-right) keep theirs.
+- Hidden when the item has nothing to copy.
+- The cards stay server components; only the button is a client island.
 
 ## Notes
 
-<!-- Any extra notes -->
+- The copy text has to be on the card already: `ITEM_CARD_SELECT` gains `content`
+  and `url`. Fetching on click would put the clipboard write after an `await`,
+  which Safari blocks. Cost accepted: the dashboard and `/items/[type]` queries
+  now load full item bodies.
+- The button sits above `OpenItemButton`'s overlay with `relative z-10`, the same
+  way `FileRow`'s download button does, so clicking copy doesn't open the drawer.
+- `getCardCopyText` mirrors `getCopyText` but branches on the item type name,
+  since cards don't carry `contentType`.
 
 ## History
 

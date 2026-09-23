@@ -19,6 +19,8 @@ const ITEM_CARD_SELECT = {
   isFavorite: true,
   isPinned: true,
   updatedAt: true,
+  content: true,
+  url: true,
   fileUrl: true,
   fileName: true,
   fileSize: true,

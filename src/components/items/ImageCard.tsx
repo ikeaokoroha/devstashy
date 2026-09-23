@@ -3,7 +3,9 @@ import { ImageIcon, Pin, Star } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { CopyItemButton } from "@/components/items/CopyItemButton";
 import { OpenItemButton } from "@/components/items/OpenItemButton";
+import { getCardCopyText } from "@/lib/item-detail";
 import { getItemTypeStyle } from "@/lib/item-types";
 import type { ItemWithType } from "@/types/dashboard";
 
@@ -24,6 +26,7 @@ interface ImageCardProps {
 
 export function ImageCard({ item }: ImageCardProps) {
   const { icon: Icon, textClass, borderClass } = getItemTypeStyle(item.itemType.name);
+  const copyText = getCardCopyText(item);
 
   return (
     <Card
@@ -72,6 +75,15 @@ export function ImageCard({ item }: ImageCardProps) {
         >
           {DATE_FORMATTER.format(item.updatedAt)}
         </time>
+        {copyText && (
+          // -my-1 keeps the button from making the footer row taller.
+          <CopyItemButton
+            title={item.title}
+            text={copyText}
+            size="icon-sm"
+            className="-my-1 -mr-1.5"
+          />
+        )}
       </div>
     </Card>
   );

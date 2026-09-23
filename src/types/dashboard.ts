@@ -51,6 +51,10 @@ export interface ItemWithType {
   isFavorite: boolean;
   isPinned: boolean;
   updatedAt: Date;
+  // What the card's copy button puts on the clipboard, by type: content for the
+  // text types, url for a link, fileUrl for file and image.
+  content: string | null;
+  url: string | null;
   // Null for every type but file and image; the gallery's thumbnails and the
   // file list's rows read them.
   fileUrl: string | null;
