@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import type { CreateCollectionData } from "@/lib/collection-validation";
 import { prisma } from "@/lib/prisma";
 import type {
   CollectionItemType,
@@ -84,6 +85,24 @@ export async function getSidebarCollections(
     favorites: favorites.map(toSidebarCollection),
     recent: recent.map(toSidebarCollection),
   };
+}
+
+// Saves a new collection for the user. isFavorite and defaultTypeId keep their
+// schema defaults: neither is set from the New Collection dialog.
+export async function createCollection(
+  userId: string,
+  data: CreateCollectionData
+): Promise<string> {
+  const collection = await prisma.collection.create({
+    data: {
+      name: data.name,
+      description: data.description,
+      user: { connect: { id: userId } },
+    },
+    select: { id: true },
+  });
+
+  return collection.id;
 }
 
 function toSidebarCollection({ items, ...collection }: SidebarCollectionRow): SidebarCollection {

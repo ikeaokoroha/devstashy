@@ -1,18 +1,50 @@
-# Current Feature
+# Current Feature: Collection Create
 
-<!-- Feature name and short description -->
+Make the top bar's "New Collection" button work: open a modal that creates a
+user-scoped collection with a name and description, following the same patterns
+as item create.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Turn the display-only "New Collection" button in `src/components/dashboard/TopBar.tsx`
+  into a client island that opens a shadcn Dialog, mirroring `NewItemDialog`.
+- Modal fields: name (required) and description (optional). Keep the dialog
+  uncloseable mid-save, disable Create while the name is blank or a save is
+  running, and start blank on each open (form child unmounts on close).
+- Add `createCollectionSchema` to a new `src/lib/collection-validation.ts`,
+  matching `item-validation.ts`: name trimmed and required, blank description
+  stored as null.
+- Add a `createCollection` query to `src/lib/db/collections.ts` (connects the
+  collection to the user, returns the new collection) and a `createCollection`
+  server action in a new `src/actions/collections.ts` following
+  `src/actions/items.ts`: `requireUserId`, `{ success, data, error }`, field
+  errors through the shared `fieldErrorResult` helper, generic error in
+  try/catch.
+- Every collection read stays user-scoped through `lib/db` functions called from
+  server components; any client-side fetch goes through an API route the way
+  `GET /api/items/[id]` does.
+- Show a sonner toast on success ("Collection created") and on failure.
+- Refresh the UI on save so the new collection appears in the sidebar's
+  Collections group and the dashboard's recent collections
+  (`router.refresh()`, as item create does).
 
 ## Notes
 
-<!-- Any extra notes -->
+- Patterns to mirror: `src/components/items/NewItemDialog.tsx`,
+  `src/actions/items.ts`, `src/lib/item-validation.ts`, `src/lib/db/items.ts`.
+- The `Collection` model already exists (name, description, isFavorite,
+  defaultTypeId, userId, timestamps), so no migration should be needed.
+- Only create is in scope — no collection edit, delete, favorite toggle,
+  `/collections` list page, or adding items to a collection.
+- `defaultTypeId` is left alone; it is still flagged undecided in the project
+  overview.
+- Tests: unit test the new schema, query and action (validation failure, happy
+  path, database error) per the Testing section of coding-standards.md; the
+  dialog component is not unit tested, matching the item components.
 
 ## History
 
