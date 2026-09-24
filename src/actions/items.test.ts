@@ -62,7 +62,20 @@ describe("updateItem", () => {
       ...input,
       title: "useAuth Hook",
       description: null,
+      collectionIds: [],
     });
+  });
+
+  it("passes the picked collections through to the query", async () => {
+    vi.mocked(updateItemQuery).mockResolvedValue({ id: "item-1" } as never);
+
+    await updateItem("item-1", { ...input, collectionIds: [" col-1 ", "col-1", "col-2"] });
+
+    expect(updateItemQuery).toHaveBeenCalledWith(
+      "user-1",
+      "item-1",
+      expect.objectContaining({ collectionIds: ["col-1", "col-2"] })
+    );
   });
 
   it("returns a friendly error when the database fails", async () => {
@@ -110,7 +123,19 @@ describe("createItem", () => {
       fileUrl: null,
       fileName: null,
       fileSize: null,
+      collectionIds: [],
     });
+  });
+
+  it("passes the picked collections through to the query", async () => {
+    vi.mocked(createItemQuery).mockResolvedValue("item-9");
+
+    await createItem({ ...createInput, collectionIds: ["col-1", " col-2 "] });
+
+    expect(createItemQuery).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ collectionIds: ["col-1", "col-2"] })
+    );
   });
 
   it("requires a file for a file item", async () => {

@@ -53,6 +53,20 @@ describe("updateItemSchema", () => {
     const data = updateItemSchema.parse({ ...valid, tags: [" react ", "", "react", "hooks"] });
     expect(data.tags).toEqual(["react", "hooks"]);
   });
+
+  it("trims collection ids and drops blanks and duplicates", () => {
+    const data = updateItemSchema.parse({
+      ...valid,
+      collectionIds: [" col-1 ", "", "col-1", "col-2"],
+    });
+
+    expect(data.collectionIds).toEqual(["col-1", "col-2"]);
+  });
+
+  it("treats a missing collection selection as none", () => {
+    expect(updateItemSchema.parse(valid).collectionIds).toEqual([]);
+    expect(updateItemSchema.parse({ ...valid, collectionIds: null }).collectionIds).toEqual([]);
+  });
 });
 
 describe("createItemSchema", () => {

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { toItemDetailJson } from "@/lib/item-detail";
 import { getEditableFields, parseTags, type UpdateItemField } from "@/lib/item-validation";
 import type { ItemDetailJson } from "@/types/items";
+import { CollectionPicker } from "./CollectionPicker";
 import { ContentField } from "./ContentField";
 import { ItemMetadata } from "./ItemDetailBody";
 import { TextareaField } from "./TextareaField";
@@ -38,6 +39,9 @@ export function ItemEditForm({ item, typeName, onCancel, onSaved }: ItemEditForm
   const [language, setLanguage] = useState(item.language ?? "");
   const [url, setUrl] = useState(item.url ?? "");
   const [tags, setTags] = useState(item.tags.join(", "));
+  const [collectionIds, setCollectionIds] = useState(
+    item.collections.map((collection) => collection.id)
+  );
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [isSaving, startSaving] = useTransition();
 
@@ -52,6 +56,7 @@ export function ItemEditForm({ item, typeName, onCancel, onSaved }: ItemEditForm
           language: editable.language ? language : null,
           url: editable.url ? url : null,
           tags: parseTags(tags),
+          collectionIds,
         });
         if (!result.success || !result.data?.item) {
           setFieldErrors(result.data?.fieldErrors ?? {});
@@ -137,8 +142,13 @@ export function ItemEditForm({ item, typeName, onCancel, onSaved }: ItemEditForm
           onChange={(event) => setTags(event.target.value)}
           error={fieldErrors.tags}
         />
+        <CollectionPicker
+          value={collectionIds}
+          onChange={setCollectionIds}
+          error={fieldErrors.collectionIds}
+        />
 
-        <ItemMetadata item={item} />
+        <ItemMetadata item={item} showCollections={false} />
       </div>
     </form>
   );

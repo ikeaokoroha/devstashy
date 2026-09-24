@@ -8,6 +8,7 @@ import type {
   SidebarCollection,
   SidebarCollections,
 } from "@/types/dashboard";
+import type { ItemCollectionRef } from "@/types/items";
 
 const COLLECTION_ITEM_TYPES_SELECT = {
   select: {
@@ -85,6 +86,34 @@ export async function getSidebarCollections(
     favorites: favorites.map(toSidebarCollection),
     recent: recent.map(toSidebarCollection),
   };
+}
+
+// Every collection the user can add an item to, for the item forms' picker.
+export async function getPickerCollections(userId: string): Promise<ItemCollectionRef[]> {
+  return prisma.collection.findMany({
+    where: { userId },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+}
+
+// The subset of ids that are the user's own collections. Both item writes run
+// their selection through this, so an id from a crafted payload can't link an
+// item into someone else's collection.
+export async function filterOwnedCollectionIds(
+  userId: string,
+  collectionIds: string[]
+): Promise<string[]> {
+  if (collectionIds.length === 0) {
+    return [];
+  }
+
+  const owned = await prisma.collection.findMany({
+    where: { userId, id: { in: collectionIds } },
+    select: { id: true },
+  });
+
+  return owned.map(({ id }) => id);
 }
 
 // Saves a new collection for the user. isFavorite and defaultTypeId keep their

@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { filterOwnedCollectionIds } from "@/lib/db/collections";
 import { SYSTEM_ITEM_TYPE_ORDER } from "@/lib/item-types";
 import {
   getEditableFields,
@@ -167,7 +168,10 @@ export async function updateItem(
 ): Promise<ItemDetail | null> {
   const existing = await prisma.item.findFirst({
     where: { id: itemId, userId },
-    select: { itemType: { select: { name: true } } },
+    select: {
+      itemType: { select: { name: true } },
+      collections: { select: { collectionId: true } },
+    },
   });
   if (!existing) {
     return null;
@@ -176,9 +180,19 @@ export async function updateItem(
   const editable = getEditableFields(existing.itemType.name);
   const where = { id: itemId, userId };
 
-  // Two writes in one transaction so the tags are cleared before the new ones
-  // are connected; Tag names are unique, so existing tags are reused.
-  const [, item] = await prisma.$transaction([
+  // Only the collections the user owns, and only the difference from what the
+  // item is already in: a blanket clear and re-link would reset addedAt on the
+  // collections the edit didn't touch.
+  const selectedCollections = await filterOwnedCollectionIds(userId, data.collectionIds);
+  const currentCollections = existing.collections.map(({ collectionId }) => collectionId);
+  const addedCollections = selectedCollections.filter((id) => !currentCollections.includes(id));
+  const removedCollections = currentCollections.filter((id) => !selectedCollections.includes(id));
+
+  // One transaction so the tags are cleared before the new ones are connected
+  // (Tag names are unique, so existing tags are reused) and the dropped
+  // collections are unlinked before the item is read back. An empty `in` list
+  // matches nothing, so the delete is always sent.
+  const [, , item] = await prisma.$transaction([
     prisma.item.update({
       where,
       data: {
@@ -191,12 +205,22 @@ export async function updateItem(
       },
       select: { id: true },
     }),
+    prisma.itemCollection.deleteMany({
+      where: { itemId, collectionId: { in: removedCollections } },
+    }),
     prisma.item.update({
       where,
       data: {
         tags: {
           connectOrCreate: data.tags.map((name) => ({ where: { name }, create: { name } })),
         },
+        ...(addedCollections.length > 0 && {
+          collections: {
+            create: addedCollections.map((collectionId) => ({
+              collection: { connect: { id: collectionId } },
+            })),
+          },
+        }),
       },
       select: ITEM_DETAIL_SELECT,
     }),
@@ -220,6 +244,7 @@ export async function createItem(
   }
 
   const editable = getEditableFields(data.type);
+  const collectionIds = await filterOwnedCollectionIds(userId, data.collectionIds);
   const item = await prisma.item.create({
     data: {
       title: data.title,
@@ -238,6 +263,13 @@ export async function createItem(
       tags: {
         connectOrCreate: data.tags.map((name) => ({ where: { name }, create: { name } })),
       },
+      ...(collectionIds.length > 0 && {
+        collections: {
+          create: collectionIds.map((collectionId) => ({
+            collection: { connect: { id: collectionId } },
+          })),
+        },
+      }),
     },
     select: { id: true },
   });

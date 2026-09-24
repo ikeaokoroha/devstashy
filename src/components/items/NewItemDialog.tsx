@@ -31,6 +31,7 @@ import {
 } from "@/lib/item-validation";
 import { cn } from "@/lib/utils";
 import type { UploadedFile } from "@/types/items";
+import { CollectionPicker } from "./CollectionPicker";
 import { ContentField } from "./ContentField";
 import { FileUpload } from "./FileUpload";
 import { TextareaField } from "./TextareaField";
@@ -97,6 +98,7 @@ function NewItemForm({ defaultType, isSaving, startSaving, onCreated }: NewItemF
   const [language, setLanguage] = useState("");
   const [url, setUrl] = useState("");
   const [tags, setTags] = useState("");
+  const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [file, setFile] = useState<UploadedFile | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -123,6 +125,7 @@ function NewItemForm({ defaultType, isSaving, startSaving, onCreated }: NewItemF
           fileName: editable.file ? (file?.fileName ?? null) : null,
           fileSize: editable.file ? (file?.fileSize ?? null) : null,
           tags: parseTags(tags),
+          collectionIds,
         });
         if (!result.success) {
           setFieldErrors(result.data?.fieldErrors ?? {});
@@ -210,6 +213,11 @@ function NewItemForm({ defaultType, isSaving, startSaving, onCreated }: NewItemF
         value={tags}
         onChange={(event) => setTags(event.target.value)}
         error={fieldErrors.tags}
+      />
+      <CollectionPicker
+        value={collectionIds}
+        onChange={setCollectionIds}
+        error={fieldErrors.collectionIds}
       />
 
       <DialogFooter>
