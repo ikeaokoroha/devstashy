@@ -1,57 +1,18 @@
-# Current Feature: Collection Actions (Edit, Delete, Favorite)
+# Current Feature
 
-Edit, delete and favorite actions for collections — as buttons on the collection
-detail page and as a three-dot dropdown on the collection cards.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- **Detail page actions** — `/collections/[id]` gets edit, delete and favorite
-  buttons in its header.
-  - **Edit** opens a modal for the collection's metadata (name, description),
-    prefilled with the current values.
-  - **Delete** asks for confirmation before deleting.
-  - **Favorite** is the icon/button only — no behaviour yet.
-- **Card dropdown** — the collection cards on `/collections` and the dashboard get
-  a three-dot icon that opens a dropdown with Edit, Delete and Favorite.
-  - The same edit modal, delete confirmation and inert favorite as the detail page.
-  - Clicking anywhere else on the card still navigates to the collection page.
-- **Deleting a collection must not delete its items** — the items only stop
-  belonging to that collection.
-- Unit tests for the new server actions, queries and validation, and a passing
-  `npm run test:run`, `npx tsc --noEmit`, `npm run lint` and `npm run build`.
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Favorite is display only this round: render the star icon/menu entry, but wire up
-  no action. Ship the working toggle in a later feature.
-- The delete must leave items alone. `ItemCollection` rows cascade from
-  `Collection`, so deleting the collection row removes only the join rows and the
-  `Item` rows are untouched — worth asserting in a test so a future schema change
-  can't turn this into a data loss bug.
-- `CollectionCard` is currently a `<Link>` wrapping the whole card, so a dropdown
-  trigger can't just be dropped inside it (a button nested in an anchor is invalid
-  and the click would navigate). Restructure it the way the item cards already
-  solve this: the card stays a server component with an absolutely positioned
-  overlay link, and the dropdown sits above it with `relative z-10`. That is the
-  same fix the image gallery found and the file list reused.
-- The edit modal and delete confirmation are used from two places (the detail page
-  and the card dropdown), so build them as shared client components under
-  `src/components/collections/` rather than inlining either one.
-- Follow the existing item patterns throughout: `NewCollectionDialog` for the edit
-  modal's shape (child form unmounting on close, disabled submit while saving,
-  no dismiss mid-save), `DeleteItemDialog` for the confirmation, and the
-  `updateItem`/`deleteItem` actions and queries for `updateCollection` /
-  `deleteCollection` — `requireUserId`, ownership scoped in the query itself
-  (`findFirst` / `deleteMany` on id + userId), `{ success, data, error }`,
-  `fieldErrorResult` for field errors, sonner toast plus `router.refresh()`.
-- `updateCollectionSchema` goes in the existing `src/lib/collection-validation.ts`
-  next to `createCollectionSchema`.
-- Deleting from the detail page has nowhere to stay — redirect to `/collections`
-  afterwards. Deleting from a card just refreshes.
+<!-- Any extra notes -->
 
 ## History
 
@@ -167,3 +128,6 @@ Items can now belong to one or more collections, picked in the New Item dialog a
 
 Collection Pages
 Added /collections and /collections/[id], so the collection links the sidebar and the dashboard cards had carried since Stats & Sidebar and Dashboard UI Phase 3 finally resolve; nothing needed rewiring, since SidebarCollectionsNav already pointed at /collections and both it and CollectionCard at /collections/${collection.id}, and the routes simply didn't exist. Three queries, no migration: getAllCollections (every collection the user owns, favorites first then updatedAt, unbounded like the item list pages) and getCollectionDetail (findFirst on id and userId, so another user's id finds nothing and the page 404s) joined src/lib/db/collections.ts, where the select getRecentCollections had inlined was pulled out as COLLECTION_SUMMARY_SELECT with a toCollectionSummary mapper so both go through one copy of the type-ranking logic. getItemsByCollection went into src/lib/db/items.ts rather than next to the other two, because it needs that module's private ITEM_CARD_SELECT and toItemWithType, and items.ts already imports filterOwnedCollectionIds from collections.ts — the query the other way round would have been a circular import. It filters on collections: { some: { collectionId } } plus userId and sorts pinned first then updatedAt, which the existing indexes cover. The list page pairs the /items/[type] header shape (icon tile, title, count, action on the right) with a new CollectionGrid over the existing CollectionCard, reusing ItemGrid's dashed empty state. The detail page's item rendering went two rounds: it first used ItemGrid for everything, on the reasoning that a collection holds mixed types and so has no single shape to branch on the way /items/[type] picks a gallery or a file list — but that made an image added to a collection render as a card with no thumbnail, losing the view its own type page gives it. CollectionItems now partitions the already-fetched items into images, files and the rest and hands each to the component that type already uses (ImageGrid, FileList, ItemGrid), which needed no query change since ITEM_CARD_SELECT has carried fileUrl, fileName and fileSize since the gallery and file list shipped. Section headings only render once more than one group is non-empty, so a collection of plain snippets doesn't grow a pointless "Items" header, and that heading takes an explicit Layers icon rather than deriving one, since getItemTypeStyle falls back to a File icon and would have put a file mark directly above the real Files section; the partition walks the sorted array, so pinned-first order holds within each group. Two changes outside the new files. NewCollectionDialog had the top bar's size="lg" and hidden sm:inline-flex baked into its trigger, so it gained size and className props (mirroring the ones NewItemDialog took for the type pages) with the hidden class moved to the TopBar call site — the page header's button therefore shows on a phone, where the top bar's copy is hidden and would otherwise leave no way to create a collection there. And ImageCard/ImageGrid gained priority and leading: next/image lazy-loads by default, so the browser was picking a lazily-loaded thumbnail as the LCP element and next/image was advising priority — a warning that predated this feature on /items/images. Rather than eager-loading every tile, ImageGrid marks only its first three (one row at the widest breakpoint) and only when told it leads the page: unconditionally on /items/images, and on the collection page only when rest.length === 0, so images sitting under a block of cards keep lazy loading. The detail page also runs its two queries in Promise.all — both are scoped to the user, so the items query is safe before the collection is known to exist, and a foreign id returns [] while notFound() still fires; the cost is one wasted query on the 404 path against a saved Neon round trip on every real view. generateMetadata and the page body share one collection lookup through React cache, the way requireUserId shares its session. /collections/:path* joined the proxy matcher. Six tests cover the three queries (user-scoped where clauses, the mapped card shape with types ranked by use, an empty collection, tags flattened to names), bringing the suite to 189; the pages and the three new components aren't unit tested, matching the ImageCard/ImageGrid/FileList convention. Known gaps: a collection still can't be renamed, deleted or favorited, and an item can't be removed from one except through the item's own edit form; getAllCollections and getItemsByCollection have no pagination, inheriting the unbounded shape of getItemsByType, and the former still loads every ItemCollection row to rank types — the groupBy fix considered and dropped in Code Scan Quick Wins 2 now has a second caller; and the collection header shows a neutral folder rather than a tile coloured by the dominant type, since that ranking lives inside collections.ts and isn't returned by the detail query. Verified with tsc, eslint, the Vitest suite and next build, with both routes confirmed in the build output; the user checked the pages in the browser, which is what produced the mixed-type sectioning and the LCP fix.
+
+Collection Actions (Edit, Delete, Favorite)
+Collections can now be renamed, re-described and deleted, from the /collections/[id] header and from a three-dot dropdown on the collection cards on /collections and the dashboard. Favorite is the icon and menu entry only — a Button with aria-pressed and no handler, the same display-only shape the item drawer's Favorite and Pin have carried since the drawer was built — so the working toggle is still to come. Deleting a collection deliberately leaves its items alone: only the ItemCollection join rows go, cascading from Collection, so no migration was needed and an item that lived in the deleted collection simply stops belonging to it. updateCollectionSchema in src/lib/collection-validation.ts is currently the same object as createCollectionSchema, since the edit dialog saves exactly the metadata the create dialog writes; it is exported under its own name and tested through its own assertions so the two can diverge later without the edit form silently inheriting a change. The updateCollection and deleteCollection queries in src/lib/db/collections.ts use updateMany and deleteMany on id + userId rather than update/delete, since there is no unique (id, userId): the ownership check and the write are one statement, so another user's id touches nothing, and each returns whether a row was affected. The matching actions in src/actions/collections.ts follow updateItem/deleteItem exactly — requireUserId, a module-local collectionIdSchema, "Collection not found." when the id is blank or the query affected nothing, fieldErrorResult for field errors and a generic message in try/catch. Both dialogs are controlled and trigger-less, which is the one deliberate departure from DeleteItemDialog: a dialog rendered inside a dropdown menu unmounts the moment the menu closes, so each call site renders its own trigger and keeps the dialog as a sibling. EditCollectionDialog mirrors NewCollectionDialog throughout (the form lives in a child that unmounts on close, so each open starts from the saved values and discards an abandoned edit; Save disabled while the name is blank or a save is running; Escape and an outside click ignored mid-save; sonner toast plus router.refresh()), and its EditableCollection prop is just id/name/description, which both CollectionSummary and CollectionDetail already carry, so neither call site needed an extra query to prefill. DeleteCollectionDialog takes an onDeleted callback because the two call sites need different things afterwards: a card refreshes in place, while the detail page has to router.push("/collections") since the page it sits on is gone. CollectionCard was restructured from a Link wrapping the whole card to a relatively positioned Card with an absolute inset-0 overlay link and the menu above it at relative z-10 — the same fix the image gallery found and the file list reused — which keeps the card a server component and means both /collections and the dashboard picked the menu up with no change at either call site; the now-unused group/collection class went with it, the hover moving onto the Card itself. The detail page header became a flex-wrap row with the actions on the right. Tests cover the update schema's rules the edit form depends on, both queries (scoped where clauses, the affected-count mapping in each direction) and both actions (empty id and validation failure each short-circuiting before the database, success, not found, database error), bringing the suite to 206; the four new components aren't unit tested, matching the rest of the collection and item components. One test is weaker than it reads and is kept as a tripwire rather than proof: "never deletes items" asserts prisma.item.deleteMany was not called, but deleteCollection holds no reference to item at all, so it can only fail if someone deliberately adds an item delete there — the actual guarantee lives in onDelete: Cascade on ItemCollection.collection in the schema, which a unit test with Prisma mocked cannot reach. Known gaps: Favorite does nothing on either surface; a collection deleted elsewhere shows "Collection not found." and leaves the dialog open rather than closing it, as the item delete does; and the edit dialog has no .max() bound on the name or description, the same gap the create dialog and the item schemas carry. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user, in particular that the three-dot menu opens without navigating and that the edit dialog opened from a menu item survives the menu closing.
