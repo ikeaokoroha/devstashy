@@ -5,6 +5,7 @@ import { SIGN_IN_PATH } from "@/auth.config";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { ItemDrawerProvider } from "@/components/items/ItemDrawerProvider";
+import { SearchProvider } from "@/components/search/SearchProvider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getSidebarCollections } from "@/lib/db/collections";
 import { getSystemItemTypes } from "@/lib/db/items";
@@ -40,9 +41,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <SidebarProvider defaultOpen={defaultOpen} className="h-svh">
       <AppSidebar itemTypes={itemTypes} collections={collections} user={{ name, email, image }} />
       <SidebarInset className="min-w-0 overflow-hidden">
-        <TopBar />
+        {/* Both providers wrap the top bar as well as the page: the command
+            palette's trigger lives there, and selecting a result opens the
+            same drawer an item card does. */}
         <ItemDrawerProvider>
-          <div className="min-h-0 flex-1 overflow-y-auto p-6 md:px-12 lg:px-16 xl:px-24">{children}</div>
+          <SearchProvider>
+            <TopBar />
+            <div className="min-h-0 flex-1 overflow-y-auto p-6 md:px-12 lg:px-16 xl:px-24">
+              {children}
+            </div>
+          </SearchProvider>
         </ItemDrawerProvider>
       </SidebarInset>
     </SidebarProvider>

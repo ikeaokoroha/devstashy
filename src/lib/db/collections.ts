@@ -13,6 +13,7 @@ import type {
   SidebarCollections,
 } from "@/types/dashboard";
 import type { ItemCollectionRef } from "@/types/items";
+import type { SearchCollection } from "@/types/search";
 
 const COLLECTION_ITEM_TYPES_SELECT = {
   select: {
@@ -135,6 +136,25 @@ export async function getPickerCollections(userId: string): Promise<ItemCollecti
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
+}
+
+// The user's collections for the command palette, favorites first so an empty
+// query opens on the ones they reach for most.
+export async function getSearchCollections(
+  userId: string,
+  limit: number
+): Promise<SearchCollection[]> {
+  const collections = await prisma.collection.findMany({
+    where: { userId },
+    orderBy: [{ isFavorite: "desc" }, { updatedAt: "desc" }],
+    take: limit,
+    select: { id: true, name: true, _count: { select: { items: true } } },
+  });
+
+  return collections.map(({ _count, ...collection }) => ({
+    ...collection,
+    itemCount: _count.items,
+  }));
 }
 
 // The subset of ids that are the user's own collections. Both item writes run

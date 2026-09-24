@@ -7,8 +7,10 @@ import {
   type UpdateItemData,
 } from "@/lib/item-validation";
 import { prisma } from "@/lib/prisma";
+import { toSearchPreview } from "@/lib/search";
 import type { ItemStats, ItemTypeWithCount, ItemWithType } from "@/types/dashboard";
 import type { ItemDetail } from "@/types/items";
+import type { SearchItem } from "@/types/search";
 
 // Only the fields the dashboard item cards render. The file fields are here for
 // the image gallery's thumbnails and the file list's rows; they're null for
@@ -108,6 +110,36 @@ export async function getItemsByCollection(
   });
 
   return items.map(toItemWithType);
+}
+
+// Just what a command palette row renders and searches. The content is the one
+// heavy column here; it's cut down to a preview before it leaves the server.
+const ITEM_SEARCH_SELECT = {
+  id: true,
+  title: true,
+  isFavorite: true,
+  isPinned: true,
+  content: true,
+  itemType: { select: { id: true, name: true } },
+} satisfies Prisma.ItemSelect;
+
+// The user's items for the command palette, most recently updated first, so an
+// empty query opens on their latest work.
+export async function getSearchItems(
+  userId: string,
+  limit: number
+): Promise<SearchItem[]> {
+  const items = await prisma.item.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    take: limit,
+    select: ITEM_SEARCH_SELECT,
+  });
+
+  return items.map(({ content, ...item }) => ({
+    ...item,
+    preview: toSearchPreview(content),
+  }));
 }
 
 const ITEM_DETAIL_SELECT = {

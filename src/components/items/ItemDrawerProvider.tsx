@@ -3,12 +3,14 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
-import type { ItemWithType } from "@/types/dashboard";
+import type { ItemPreview } from "@/types/dashboard";
 import type { ItemDetailJson, ItemDetailState } from "@/types/items";
 import { ItemDrawer } from "./ItemDrawer";
 
 interface ItemDrawerContextValue {
-  openItem: (item: ItemWithType) => void;
+  // Takes only what the drawer shows before the detail loads, so a card and a
+  // search result can both open it.
+  openItem: (item: ItemPreview) => void;
 }
 
 const ItemDrawerContext = createContext<ItemDrawerContextValue | null>(null);
@@ -32,12 +34,12 @@ async function fetchItemDetail(id: string, signal: AbortSignal): Promise<ItemDet
 export function ItemDrawerProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   // The clicked card's data, shown right away while the full detail loads.
-  const [preview, setPreview] = useState<ItemWithType | null>(null);
+  const [preview, setPreview] = useState<ItemPreview | null>(null);
   const [detail, setDetail] = useState<ItemDetailState>({ status: "loading" });
   const [editing, setEditing] = useState(false);
   const requestRef = useRef<AbortController | null>(null);
 
-  const openItem = useCallback((item: ItemWithType) => {
+  const openItem = useCallback((item: ItemPreview) => {
     // A newer click wins: drop any response still in flight for the previous item.
     requestRef.current?.abort();
     const controller = new AbortController();

@@ -6,6 +6,7 @@ import {
   getItemDetail,
   getItemFile,
   getItemsByCollection,
+  getSearchItems,
   updateItem,
 } from "@/lib/db/items";
 import { prisma } from "@/lib/prisma";
@@ -432,5 +433,61 @@ describe("deleteItem", () => {
       deleted: false,
       fileUrl: null,
     });
+  });
+});
+
+describe("getSearchItems", () => {
+  it("scopes the query to the user, newest first, capped at the limit", async () => {
+    vi.mocked(prisma.item.findMany).mockResolvedValue([]);
+
+    expect(await getSearchItems("user-1", 500)).toEqual([]);
+    expect(prisma.item.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1" },
+        orderBy: { updatedAt: "desc" },
+        take: 500,
+      })
+    );
+  });
+
+  it("returns the palette's fields with the content cut down to a preview", async () => {
+    vi.mocked(prisma.item.findMany).mockResolvedValue([
+      {
+        id: "item-1",
+        title: "useAuth Hook",
+        isFavorite: true,
+        isPinned: false,
+        content: "export function useAuth() {\n  return null;\n}",
+        itemType: { id: "type-1", name: "snippet" },
+      },
+    ] as never);
+
+    const [item] = await getSearchItems("user-1", 500);
+
+    expect(item).toEqual({
+      id: "item-1",
+      title: "useAuth Hook",
+      isFavorite: true,
+      isPinned: false,
+      itemType: { id: "type-1", name: "snippet" },
+      preview: "export function useAuth() { return null; }",
+    });
+  });
+
+  it("previews an item with no content as null", async () => {
+    vi.mocked(prisma.item.findMany).mockResolvedValue([
+      {
+        id: "item-1",
+        title: "Design System",
+        isFavorite: false,
+        isPinned: false,
+        content: null,
+        itemType: { id: "type-7", name: "link" },
+      },
+    ] as never);
+
+    const [item] = await getSearchItems("user-1", 500);
+
+    expect(item.preview).toBeNull();
   });
 });
