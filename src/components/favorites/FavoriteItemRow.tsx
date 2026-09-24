@@ -1,3 +1,5 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
 import { OpenItemButton } from "@/components/items/OpenItemButton";
 import { FavoriteButton } from "@/components/shared/FavoriteButton";
@@ -10,9 +12,9 @@ interface FavoriteItemRowProps {
   item: FavoriteItem;
 }
 
-// A dense favorites row. Like ItemCard, it stays a server component: the
-// absolutely positioned OpenItemButton is the only client part, covering the
-// row so the whole thing opens the drawer.
+// A dense favorites row. Unlike ItemCard it renders on the client, since the
+// sorted list above it holds state; it's presentational either way, and the
+// absolutely positioned OpenItemButton still covers the row to open the drawer.
 export function FavoriteItemRow({ item }: FavoriteItemRowProps) {
   const { icon: Icon, textClass } = getItemTypeStyle(item.itemType.name);
 

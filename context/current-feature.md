@@ -1,18 +1,63 @@
-# Current Feature
+# Current Feature: Favorites Sorting
 
-<!-- Feature name and short description -->
+Client-side sorting on /favorites — sort the favorited items and collections by
+name, date or item type without a server round trip.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- A sort control on the /favorites page header offering Name, Date and Item type.
+- Sorting happens in the browser over the rows already fetched — no refetch, no
+  page reload, no new query.
+- Both sections reorder: Items by all three keys, Collections by the keys that
+  apply to it (see Notes on item type).
+- The sort choice persists while the user is on the page and is reflected in the
+  control; dropping it on navigation is acceptable.
+- The rows themselves are unchanged — same dense mono layout, same star, same
+  drawer/link behaviour, same empty state.
+- tsc, eslint, `npm run test:run` and `npm run build` all pass; unit tests cover
+  the comparator logic in `src/lib/favorites.ts` (utilities are testable, the
+  components are not, per the Testing section).
 
 ## Notes
 
-<!-- Any extra notes -->
+- Current page: `src/app/(app)/favorites/page.tsx` is a server component running
+  `getFavoriteItems` and `getFavoriteCollections` in parallel (capped at
+  `FAVORITES_LIMIT`, not paginated), rendering `FavoritesSection` with
+  `FavoriteItemRow` / `FavoriteCollectionRow`. Both rows are server components
+  today; the only client parts inside them are `OpenItemButton` and
+  `FavoriteButton`.
+- Sorting client-side means the rows have to be produced under a client
+  component. Two shapes to pick from at start:
+  1. A client wrapper that takes the plain arrays and renders the rows itself —
+     the rows become client components. They're presentational (Badge, Link,
+     icons, the two existing client buttons), so nothing blocks it, and `Date`
+     serializes across the RSC boundary.
+  2. Keep the rows server-rendered and have a client wrapper reorder
+     pre-rendered children by a sort key passed alongside them.
+  Option 1 is simpler; option 2 keeps more of the page server-rendered.
+- Data available per row: items are `FavoriteItem` (`ItemPreview & { updatedAt }`
+  — id, title, isFavorite, isPinned, itemType, updatedAt); collections are
+  `FavoriteCollection` (id, name, itemCount, updatedAt). Neither query needs to
+  change.
+- Item type doesn't exist on a collection. Decide at start: either hide/disable
+  the Item type option for the Collections section, sort collections by name
+  under it, or leave the collections order untouched when it's selected.
+- Sort direction isn't in the request. Suggested default: name and item type
+  ascending, date descending (newest first, matching the current order, which is
+  `updatedAt` desc from the queries). A direction toggle is out of scope unless
+  asked for.
+- Ties: fall back to name so the order is stable, since item type and date can
+  repeat across rows.
+- `updatedAt` is `@updatedAt`, so "date" here is last-updated, not
+  date-favorited — the same known gap the Favorites Page shipped with.
+- Existing UI parts to reuse: the shadcn `select` (added for Editor Preferences)
+  or `dropdown-menu`; no new dependency.
+- Sort helpers belong in `src/lib/favorites.ts` next to `formatFavoriteDate`, so
+  they're unit-testable without jsdom.
 
 ## History
 
