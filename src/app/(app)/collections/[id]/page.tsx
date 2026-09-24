@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Folder, Star } from "lucide-react";
 
+import { CollectionActions } from "@/components/collections/CollectionActions";
 import { CollectionItems } from "@/components/collections/CollectionItems";
 import { getCollectionDetail } from "@/lib/db/collections";
 import { getItemsByCollection } from "@/lib/db/items";
@@ -41,27 +42,30 @@ export default async function CollectionPage({ params }: PageProps<"/collections
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-          <Folder className="size-5 text-muted-foreground" />
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="truncate text-2xl font-semibold">{collection.name}</h1>
-            {collection.isFavorite && (
-              <Star
-                aria-label="Favorite"
-                className="size-5 shrink-0 fill-yellow-400 text-yellow-400"
-              />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <Folder className="size-5 text-muted-foreground" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-2xl font-semibold">{collection.name}</h1>
+              {collection.isFavorite && (
+                <Star
+                  aria-label="Favorite"
+                  className="size-5 shrink-0 fill-yellow-400 text-yellow-400"
+                />
+              )}
+            </div>
+            <p className="text-muted-foreground">
+              {items.length} {items.length === 1 ? "item" : "items"}
+            </p>
+            {collection.description && (
+              <p className="mt-2 text-sm text-muted-foreground">{collection.description}</p>
             )}
           </div>
-          <p className="text-muted-foreground">
-            {items.length} {items.length === 1 ? "item" : "items"}
-          </p>
-          {collection.description && (
-            <p className="mt-2 text-sm text-muted-foreground">{collection.description}</p>
-          )}
         </div>
+        <CollectionActions collection={collection} isFavorite={collection.isFavorite} />
       </div>
 
       <CollectionItems
