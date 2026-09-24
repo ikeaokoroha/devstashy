@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  EDITOR_LINE_HEIGHT,
   EDITOR_MAX_HEIGHT,
   EDITOR_PADDING,
   estimateContentHeight,
   getEditorHeight,
   getEditorLanguage,
+  getEditorLineHeight,
   isCodeType,
 } from "./code-editor";
 
@@ -60,9 +60,25 @@ describe("getEditorHeight", () => {
   });
 });
 
+describe("getEditorLineHeight", () => {
+  it("follows the font size, so large type isn't clipped", () => {
+    expect(getEditorLineHeight(12)).toBe(18);
+    expect(getEditorLineHeight(18)).toBe(27);
+  });
+
+  it("rounds to a whole pixel", () => {
+    expect(getEditorLineHeight(11)).toBe(17);
+    expect(getEditorLineHeight(13)).toBe(20);
+  });
+});
+
 describe("estimateContentHeight", () => {
   it("counts lines plus top and bottom padding", () => {
-    expect(estimateContentHeight("")).toBe(EDITOR_LINE_HEIGHT + EDITOR_PADDING * 2);
-    expect(estimateContentHeight("a\nb\nc")).toBe(3 * EDITOR_LINE_HEIGHT + EDITOR_PADDING * 2);
+    expect(estimateContentHeight("", 18)).toBe(18 + EDITOR_PADDING * 2);
+    expect(estimateContentHeight("a\nb\nc", 18)).toBe(3 * 18 + EDITOR_PADDING * 2);
+  });
+
+  it("scales with the line height it's given", () => {
+    expect(estimateContentHeight("a\nb", 27)).toBe(2 * 27 + EDITOR_PADDING * 2);
   });
 });

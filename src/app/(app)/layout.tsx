@@ -4,11 +4,13 @@ import { auth } from "@/auth";
 import { SIGN_IN_PATH } from "@/auth.config";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { TopBar } from "@/components/dashboard/TopBar";
+import { EditorPreferencesProvider } from "@/components/editor/EditorPreferencesProvider";
 import { ItemDrawerProvider } from "@/components/items/ItemDrawerProvider";
 import { SearchProvider } from "@/components/search/SearchProvider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getSidebarCollections } from "@/lib/db/collections";
 import { getSystemItemTypes } from "@/lib/db/items";
+import { getEditorPreferences } from "@/lib/db/users";
 
 const SIDEBAR_FAVORITE_COLLECTIONS_LIMIT = 10;
 const SIDEBAR_RECENT_COLLECTIONS_LIMIT = 5;
@@ -28,30 +30,34 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   const { id: userId, name, email, image } = session.user;
 
-  const [itemTypes, collections] = await Promise.all([
+  const [itemTypes, collections, editorPreferences] = await Promise.all([
     getSystemItemTypes(userId),
     getSidebarCollections(
       userId,
       SIDEBAR_FAVORITE_COLLECTIONS_LIMIT,
       SIDEBAR_RECENT_COLLECTIONS_LIMIT
     ),
+    getEditorPreferences(userId),
   ]);
 
   return (
     <SidebarProvider defaultOpen={defaultOpen} className="h-svh">
       <AppSidebar itemTypes={itemTypes} collections={collections} user={{ name, email, image }} />
       <SidebarInset className="min-w-0 overflow-hidden">
-        {/* Both providers wrap the top bar as well as the page: the command
-            palette's trigger lives there, and selecting a result opens the
-            same drawer an item card does. */}
-        <ItemDrawerProvider>
-          <SearchProvider>
-            <TopBar />
-            <div className="min-h-0 flex-1 overflow-y-auto p-6 md:px-12 lg:px-16 xl:px-24">
-              {children}
-            </div>
-          </SearchProvider>
-        </ItemDrawerProvider>
+        {/* All three providers wrap the top bar as well as the page: the command
+            palette's trigger lives there, selecting a result opens the same drawer
+            an item card does, and the editors inside both the drawer and the New
+            Item dialog read the editor settings. */}
+        <EditorPreferencesProvider preferences={editorPreferences}>
+          <ItemDrawerProvider>
+            <SearchProvider>
+              <TopBar />
+              <div className="min-h-0 flex-1 overflow-y-auto p-6 md:px-12 lg:px-16 xl:px-24">
+                {children}
+              </div>
+            </SearchProvider>
+          </ItemDrawerProvider>
+        </EditorPreferencesProvider>
       </SidebarInset>
     </SidebarProvider>
   );

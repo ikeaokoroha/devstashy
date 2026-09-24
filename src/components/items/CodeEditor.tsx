@@ -5,16 +5,18 @@ import dynamic from "next/dynamic";
 import type { Monaco, OnMount } from "@monaco-editor/react";
 import { Check, Copy } from "lucide-react";
 
+import { useEditorPreferences } from "@/components/editor/EditorPreferencesProvider";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCopyToClipboard, type CopyStatus } from "@/hooks/use-copy-to-clipboard";
 import {
-  EDITOR_LINE_HEIGHT,
   EDITOR_PADDING,
   estimateContentHeight,
   getEditorHeight,
   getEditorLanguage,
+  getEditorLineHeight,
 } from "@/lib/code-editor";
+import { EDITOR_THEME_DEFINITION_LIST, getMonacoThemeName } from "@/lib/editor-themes";
 import { cn } from "@/lib/utils";
 
 // Monaco only runs in the browser, and its code (fetched from the jsDelivr CDN by
@@ -24,34 +26,19 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   loading: () => <EditorSkeleton />,
 });
 
-const THEME = "devstash-dark";
-
 const COPY_LABELS: Record<CopyStatus, string> = {
   idle: "Copy code",
   copied: "Copied",
   failed: "Copy failed",
 };
 
-// Transparent backgrounds let the frame's Tailwind colour show through, and the
-// scrollbar uses the same faint white as the app's borders.
-function defineTheme(monaco: Monaco) {
-  monaco.editor.defineTheme(THEME, {
-    base: "vs-dark",
-    inherit: true,
-    rules: [],
-    colors: {
-      "editor.background": "#00000000",
-      "editorGutter.background": "#00000000",
-      "editor.lineHighlightBackground": "#ffffff08",
-      "editor.lineHighlightBorder": "#00000000",
-      "editorLineNumber.foreground": "#ffffff40",
-      "editorLineNumber.activeForeground": "#ffffff99",
-      "scrollbar.shadow": "#00000000",
-      "scrollbarSlider.background": "#ffffff1a",
-      "scrollbarSlider.hoverBackground": "#ffffff33",
-      "scrollbarSlider.activeBackground": "#ffffff4d",
-    },
-  });
+// All three themes are registered up front, not just the current one, so switching
+// in settings only has to change the theme name. Their colours (transparent
+// backgrounds, so the frame shows through) live in lib/editor-themes.
+function defineThemes(monaco: Monaco) {
+  for (const { name, definition } of EDITOR_THEME_DEFINITION_LIST) {
+    monaco.editor.defineTheme(name, definition);
+  }
 }
 
 function EditorSkeleton() {
@@ -89,8 +76,10 @@ export function CodeEditor({
   ariaLabel = "Code",
   invalid = false,
 }: CodeEditorProps) {
+  const { preferences } = useEditorPreferences();
+  const lineHeight = getEditorLineHeight(preferences.fontSize);
   const [height, setHeight] = useState(() =>
-    getEditorHeight(estimateContentHeight(value), readOnly)
+    getEditorHeight(estimateContentHeight(value, lineHeight), readOnly)
   );
   const { status: copyStatus, copy } = useCopyToClipboard();
   const editorLanguage = getEditorLanguage(language, typeName);
@@ -134,8 +123,8 @@ export function CodeEditor({
         <MonacoEditor
           value={value}
           language={editorLanguage}
-          theme={THEME}
-          beforeMount={defineTheme}
+          theme={getMonacoThemeName(preferences.theme)}
+          beforeMount={defineThemes}
           onMount={handleMount}
           onChange={(next) => onChange?.(next ?? "")}
           loading={<EditorSkeleton />}
@@ -144,7 +133,8 @@ export function CodeEditor({
             domReadOnly: readOnly,
             ariaLabel,
             automaticLayout: true,
-            minimap: { enabled: false },
+            minimap: { enabled: preferences.minimap },
+            wordWrap: preferences.wordWrap ? "on" : "off",
             lineNumbers: readOnly ? "off" : "on",
             lineNumbersMinChars: 3,
             lineDecorationsWidth: readOnly ? 16 : 8,
@@ -157,9 +147,9 @@ export function CodeEditor({
             hideCursorInOverviewRuler: true,
             stickyScroll: { enabled: false },
             contextmenu: !readOnly,
-            tabSize: 2,
-            fontSize: 12,
-            lineHeight: EDITOR_LINE_HEIGHT,
+            tabSize: preferences.tabSize,
+            fontSize: preferences.fontSize,
+            lineHeight,
             fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
             padding: { top: EDITOR_PADDING, bottom: EDITOR_PADDING },
             scrollbar: {
