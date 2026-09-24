@@ -51,6 +51,13 @@ export const updateItemSchema = z.object({
   tags: z
     .array(z.string().trim())
     .transform((tags) => [...new Set(tags.filter(Boolean))]),
+  // Unlike the other fields this applies to every type, so it sits outside
+  // getEditableFields. The ids come from the client, so the query checks that
+  // each one belongs to the user before linking anything.
+  collectionIds: z
+    .array(z.string().trim())
+    .nullish()
+    .transform((ids) => [...new Set((ids ?? []).filter(Boolean))]),
 });
 
 export type UpdateItemInput = z.input<typeof updateItemSchema>;

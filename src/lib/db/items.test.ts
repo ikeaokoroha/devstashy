@@ -7,6 +7,10 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     item: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
     itemType: { findFirst: vi.fn() },
+    // Unlinking a dropped collection, plus the ownership check both item
+    // writes run their selection through.
+    itemCollection: { deleteMany: vi.fn() },
+    collection: { findMany: vi.fn() },
     // The batch form: the updates are already-started promises, resolved in order.
     $transaction: vi.fn((operations: Promise<unknown>[]) => Promise.all(operations)),
   },
@@ -70,13 +74,22 @@ describe("updateItem", () => {
     language: "typescript",
     url: "https://example.com",
     tags: ["auth", "hooks"],
+    collectionIds: [],
   };
 
-  function mockExistingItem(typeName: string) {
-    vi.mocked(prisma.item.findFirst).mockResolvedValue({ itemType: { name: typeName } } as never);
+  function mockExistingItem(typeName: string, collectionIds: string[] = []) {
+    vi.mocked(prisma.item.findFirst).mockResolvedValue({
+      itemType: { name: typeName },
+      collections: collectionIds.map((collectionId) => ({ collectionId })),
+    } as never);
     vi.mocked(prisma.item.update)
       .mockResolvedValueOnce({ id: "item-1" } as never)
       .mockResolvedValueOnce(row as never);
+  }
+
+  // The ids the ownership check lets through, in selection order.
+  function mockOwnedCollections(ids: string[]) {
+    vi.mocked(prisma.collection.findMany).mockResolvedValue(ids.map((id) => ({ id })) as never);
   }
 
   it("returns null without writing when the user has no such item", async () => {
@@ -124,6 +137,55 @@ describe("updateItem", () => {
     expect(item?.tags).toEqual(["auth", "react"]);
     expect(item?.collections).toEqual([{ id: "col-1", name: "React Patterns" }]);
   });
+
+  it("links only the collections the user owns", async () => {
+    mockExistingItem("snippet");
+    mockOwnedCollections(["col-1"]);
+
+    await updateItem("user-1", "item-1", {
+      ...data,
+      collectionIds: ["col-1", "someone-elses"],
+    });
+
+    expect(prisma.collection.findMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", id: { in: ["col-1", "someone-elses"] } },
+      select: { id: true },
+    });
+    const [, connect] = vi.mocked(prisma.item.update).mock.calls.map(([args]) => args);
+    expect(connect.data.collections).toEqual({
+      create: [{ collection: { connect: { id: "col-1" } } }],
+    });
+  });
+
+  it("adds and removes only the difference, leaving unchanged links alone", async () => {
+    mockExistingItem("snippet", ["col-1", "col-2"]);
+    mockOwnedCollections(["col-2", "col-3"]);
+
+    await updateItem("user-1", "item-1", { ...data, collectionIds: ["col-2", "col-3"] });
+
+    // col-2 is in both, so it's neither removed nor re-added and keeps its addedAt.
+    expect(prisma.itemCollection.deleteMany).toHaveBeenCalledWith({
+      where: { itemId: "item-1", collectionId: { in: ["col-1"] } },
+    });
+    const [, connect] = vi.mocked(prisma.item.update).mock.calls.map(([args]) => args);
+    expect(connect.data.collections).toEqual({
+      create: [{ collection: { connect: { id: "col-3" } } }],
+    });
+  });
+
+  it("removes every link when the selection is cleared", async () => {
+    mockExistingItem("snippet", ["col-1", "col-2"]);
+
+    await updateItem("user-1", "item-1", { ...data, collectionIds: [] });
+
+    expect(prisma.collection.findMany).not.toHaveBeenCalled();
+    expect(prisma.itemCollection.deleteMany).toHaveBeenCalledWith({
+      where: { itemId: "item-1", collectionId: { in: ["col-1", "col-2"] } },
+    });
+    // Nothing to add, so the write leaves the relation out altogether.
+    const [, connect] = vi.mocked(prisma.item.update).mock.calls.map(([args]) => args);
+    expect(connect.data).not.toHaveProperty("collections");
+  });
 });
 
 describe("createItem", () => {
@@ -138,6 +200,7 @@ describe("createItem", () => {
     fileName: null,
     fileSize: null,
     tags: ["auth", "hooks"],
+    collectionIds: [],
   };
 
   function mockSystemType() {
@@ -232,6 +295,32 @@ describe("createItem", () => {
     expect(created).toMatchObject({ contentType: "URL", url: "https://example.com" });
     expect(created).not.toHaveProperty("content");
     expect(created).not.toHaveProperty("language");
+  });
+
+  it("links the new item to the collections the user owns", async () => {
+    mockSystemType();
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([{ id: "col-1" }] as never);
+
+    await createItem("user-1", { ...data, collectionIds: ["col-1", "someone-elses"] });
+
+    const [{ data: created }] = vi.mocked(prisma.item.create).mock.calls[0];
+    expect(prisma.collection.findMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", id: { in: ["col-1", "someone-elses"] } },
+      select: { id: true },
+    });
+    expect(created.collections).toEqual({
+      create: [{ collection: { connect: { id: "col-1" } } }],
+    });
+  });
+
+  it("creates no links when no collection was picked", async () => {
+    mockSystemType();
+
+    await createItem("user-1", data);
+
+    const [{ data: created }] = vi.mocked(prisma.item.create).mock.calls[0];
+    expect(prisma.collection.findMany).not.toHaveBeenCalled();
+    expect(created).not.toHaveProperty("collections");
   });
 });
 

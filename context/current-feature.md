@@ -1,18 +1,55 @@
-# Current Feature
+# Current Feature: Add Items to Collections
 
-<!-- Feature name and short description -->
+Let an item belong to one or more collections, chosen from a collection picker in
+the New Item dialog and the drawer's edit form.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- A collection picker in the New Item dialog that selects none, one or several of
+  the user's collections, writing the `ItemCollection` join rows when the item is created.
+- The same picker in the drawer's edit form, where collections are currently
+  read-only in `ItemMetadata`; saving adds and removes join rows to match the selection.
+- The picker lists only the signed-in user's collections, and the server re-checks
+  ownership so a crafted collection id can't link an item into someone else's collection.
+- The drawer's view mode and the dashboard/sidebar counts reflect the change after a
+  save (the existing `router.refresh()` plus the returned `ItemDetail`).
+- An empty state in the picker when the user has no collections yet.
+- Unit tests for the new validation, query and action paths, matching the existing
+  `{ success, data, error }` coverage.
 
 ## Notes
 
-<!-- Any extra notes -->
+- Out of scope: `/collections` and `/collections/[id]` pages. Collection detail views
+  are a separate feature; this one only wires items to collections from the item forms.
+- No migration needed. `ItemCollection` already exists with `@@id([itemId, collectionId])`
+  and `addedAt`, and `ItemDetail` already returns the item's collections (id and name,
+  sorted by name) for the drawer.
+- `createItem` and `updateItem` in `src/lib/db/items.ts` are where the join rows go.
+  `updateItem` already runs two writes in one `$transaction` for tags; collections can
+  follow the same shape (`set: []` then `connect`/`create`, or `deleteMany` + `createMany`
+  on the join table — `ItemCollection` has `addedAt`, so a plain `set` would reset it
+  for collections that didn't change).
+- `updateItemSchema` / `createItemSchema` in `src/lib/item-validation.ts` need a
+  `collectionIds` array; unlike the other fields it applies to every type, so it sits
+  outside `getEditableFields`.
+- Decided at `start`: the picker fetches `GET /api/collections` when a form opens,
+  rather than taking collections as props from the `(app)` layout. Both forms use the
+  same source that way, it matches `GET /api/items/[id]`, and the query only runs when
+  someone actually opens a form instead of on every page view in the shell.
+- Decided at `start`, then changed mid-feature: the picker was first built as wrapping
+  toggle chips like the existing `TypePicker`, but that renders one button per collection,
+  so a user with 30 of them gets a wall of chips in a scroll box. It is now a searchable
+  dropdown — the shadcn `popover` and `command` components (which brought in `cmdk` and
+  `input-group`), with the selection shown underneath as removable chips so it stays
+  readable without reopening the list. The field is now a fixed-height trigger whatever
+  the collection count.
+- Known gaps this feature can inherit rather than fix: no `.max()` bounds on the item
+  schemas, and the duplicated create/edit item forms (a picker will be the third thing
+  duplicated between them).
 
 ## History
 

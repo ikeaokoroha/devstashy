@@ -157,11 +157,17 @@ export function ItemDetailBody({ item }: { item: ItemDetailJson }) {
   );
 }
 
-// Collections and dates: read-only in both view and edit mode.
-export function ItemMetadata({ item }: { item: Pick<ItemDetailJson, "collections" | "createdAt" | "updatedAt"> }) {
+interface ItemMetadataProps {
+  item: Pick<ItemDetailJson, "collections" | "createdAt" | "updatedAt">;
+  // Edit mode renders the collection picker instead, so it hides this list.
+  showCollections?: boolean;
+}
+
+// Collections and dates: the dates are read-only in both view and edit mode.
+export function ItemMetadata({ item, showCollections = true }: ItemMetadataProps) {
   return (
     <>
-      {item.collections.length > 0 && (
+      {showCollections && item.collections.length > 0 && (
         <Section title="Collections" icon={FolderOpen}>
           <div className="flex flex-wrap gap-1.5">
             {item.collections.map((collection) => (
