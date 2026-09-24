@@ -1,55 +1,18 @@
-# Current Feature: Add Items to Collections
+# Current Feature
 
-Let an item belong to one or more collections, chosen from a collection picker in
-the New Item dialog and the drawer's edit form.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- A collection picker in the New Item dialog that selects none, one or several of
-  the user's collections, writing the `ItemCollection` join rows when the item is created.
-- The same picker in the drawer's edit form, where collections are currently
-  read-only in `ItemMetadata`; saving adds and removes join rows to match the selection.
-- The picker lists only the signed-in user's collections, and the server re-checks
-  ownership so a crafted collection id can't link an item into someone else's collection.
-- The drawer's view mode and the dashboard/sidebar counts reflect the change after a
-  save (the existing `router.refresh()` plus the returned `ItemDetail`).
-- An empty state in the picker when the user has no collections yet.
-- Unit tests for the new validation, query and action paths, matching the existing
-  `{ success, data, error }` coverage.
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Out of scope: `/collections` and `/collections/[id]` pages. Collection detail views
-  are a separate feature; this one only wires items to collections from the item forms.
-- No migration needed. `ItemCollection` already exists with `@@id([itemId, collectionId])`
-  and `addedAt`, and `ItemDetail` already returns the item's collections (id and name,
-  sorted by name) for the drawer.
-- `createItem` and `updateItem` in `src/lib/db/items.ts` are where the join rows go.
-  `updateItem` already runs two writes in one `$transaction` for tags; collections can
-  follow the same shape (`set: []` then `connect`/`create`, or `deleteMany` + `createMany`
-  on the join table — `ItemCollection` has `addedAt`, so a plain `set` would reset it
-  for collections that didn't change).
-- `updateItemSchema` / `createItemSchema` in `src/lib/item-validation.ts` need a
-  `collectionIds` array; unlike the other fields it applies to every type, so it sits
-  outside `getEditableFields`.
-- Decided at `start`: the picker fetches `GET /api/collections` when a form opens,
-  rather than taking collections as props from the `(app)` layout. Both forms use the
-  same source that way, it matches `GET /api/items/[id]`, and the query only runs when
-  someone actually opens a form instead of on every page view in the shell.
-- Decided at `start`, then changed mid-feature: the picker was first built as wrapping
-  toggle chips like the existing `TypePicker`, but that renders one button per collection,
-  so a user with 30 of them gets a wall of chips in a scroll box. It is now a searchable
-  dropdown — the shadcn `popover` and `command` components (which brought in `cmdk` and
-  `input-group`), with the selection shown underneath as removable chips so it stays
-  readable without reopening the list. The field is now a fixed-height trigger whatever
-  the collection count.
-- Known gaps this feature can inherit rather than fix: no `.max()` bounds on the item
-  schemas, and the duplicated create/edit item forms (a picker will be the third thing
-  duplicated between them).
+<!-- Any extra notes -->
 
 ## History
 
@@ -159,3 +122,6 @@ Three low-risk fixes from the second code-scanner audit, with no schema change, 
 
 Collection Create
 The top bar's New Collection button, display only since Dashboard UI Phase 1, now opens a shadcn Dialog (src/components/collections/NewCollectionDialog.tsx, a client island inside the server TopBar) with a name and an optional description — the first write outside items, and the first file under src/components/collections. It mirrors NewItemDialog throughout: the form lives in a child that unmounts on close so each open starts blank, Create is disabled while the name is blank or a save is running, Escape and an outside click can't dismiss it mid-save (handleOpenChange ignores the change while the transition runs), and on success a sonner "Collection created" toast shows, the dialog closes and router.refresh() re-runs the (app) layout and dashboard page so the sidebar's Collections group, the recent-collection cards and the collections stat card all pick the new row up; errors show a toast plus per-field messages. The trigger keeps the old button's outline/lg/hidden sm:inline-flex styling and FolderPlus icon, so nothing moves in the top bar. Fields reuse the existing FormField and the items' TextareaField rather than new ones, following NewItemDialog, which already reaches across to @/components/auth/FormField. createCollectionSchema in the new src/lib/collection-validation.ts copies item-validation's shape — name trimmed and required, blank description stored as null through the same optionalText transform — and the createCollection query in src/lib/db/collections.ts connects the row to the user and returns the new id, like createItem. No migration was needed: Collection already had name, description, isFavorite, defaultTypeId, userId and timestamps, and the two the dialog doesn't set keep their schema defaults, so a new collection is non-favorite and lands in the sidebar's recent group rather than favorites. The createCollection action in the new src/actions/collections.ts follows the item actions exactly: requireUserId, safeParse, { success, data: { id }, error }, and a generic "Couldn't create this collection. Please try again." in try/catch. fieldErrorResult moved out of src/actions/items.ts into a shared src/lib/action-errors.ts so both action modules use one copy rather than a second inline definition; items.ts is otherwise unchanged. No API route was added, deliberately: creating is a mutation and goes through a server action like createItem, and nothing on the client reads a collection yet, so the spec's "API routes for client-side calls" goal has nothing to hit until collection detail lands — building an unused POST /api/collections was considered and dropped. Tests cover the schema (trimming, blank name rejected, blank and missing description both null), the query (user connect and returned id, null description) and the action (validation failure without touching the database, parsed data scoped to the signed-in user, database error), plus three for fieldErrorResult now that it is a shared utility: one message per field, only the first when a field fails two checks, and valid fields left out — behaviour no existing caller's tests exercised, since each only ever trips a single issue. That last case was checked against Zod directly to confirm it collects both messages, so the assertion isn't vacuous. The suite is at 167. The dialog and TopBar aren't unit tested, matching the item components. Known gaps: the new collection can't be favorited, renamed, deleted or filled with items yet, and /collections still 404s, so the "View all collections" link in the sidebar remains dead; TextareaField still lives under components/items despite now having a collections caller, worth moving to shared when collection edit duplicates this form the way ItemEditForm duplicates NewItemDialog; and there is no .max() bound on the name or description, the same gap the item schemas carry. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user and had not been reported back when the feature was completed.
+
+Add Items to Collections
+Items can now belong to one or more collections, picked in the New Item dialog and in the item drawer's edit form, where collections had been read-only since the drawer was built; the collection pages stayed out of scope, so /collections still 404s. No migration was needed: ItemCollection already existed with @@id([itemId, collectionId]) and addedAt, and ItemDetail already returned the item's collections for the drawer. Both forms read one source, GET /api/collections (src/app/api/collections/route.ts, checking the session itself since the proxy doesn't cover /api, over the new getPickerCollections), fetched when a form opens rather than passed down as props from the (app) layout — props would have worked for NewItemDialog through the server TopBar, but the edit form sits inside the client drawer with no server parent, and a layout fetch would have run an unbounded query on every page view in the shell whether or not a form was opened. collectionIds joined updateItemSchema (so createItemSchema inherits it) as a string array with blanks and duplicates dropped, sitting outside getEditableFields since unlike every other field it applies to all seven types; a missing or null value parses to an empty selection, so an older client can't clear an item's collections by omission. filterOwnedCollectionIds in src/lib/db/collections.ts is the ownership gate both writes run their selection through — the ids come from the browser, so a crafted payload would otherwise have linked an item into a stranger's collection — and it skips the query entirely when nothing was picked. createItem links the picked collections in the same nested create as its tags; updateItem diffs instead, deleting only the dropped links and creating only the new ones, because ItemCollection carries addedAt and the tags' clear-and-reconnect shape would have re-stamped every collection the edit didn't touch. The picker went two rounds. It was first built as wrapping toggle chips like the existing TypePicker, which renders one button per collection and turns into a wall of chips in a scroll box for anyone with thirty of them; on review it became a searchable dropdown on the shadcn popover and command components (which brought in cmdk and an input-group component), with a fixed-height trigger reading "Add to collections", the single name or "N collections", the popup matched to the trigger through Base UI's --anchor-width (confirmed in their docs rather than assumed), and the selection repeated underneath as removable chips so it stays readable without reopening the list. Two cmdk details shaped the code: items are keyed by collection id rather than name so two collections sharing a name stay distinct, which meant pointing a custom filter back at the names, and cmdk lowercases the value it hands onSelect, so the toggle takes the id from the closure. CollectionPicker is the only new client component; ItemMetadata gained a showCollections flag so the read-only Collections list hides in edit mode where the picker replaces it. Also reversed mid-feature: the adds in updateItem were first written as itemCollection.createMany, which meant sending an empty data array whenever nothing was added — undocumented behaviour sitting in the path of every item save — so they moved into the existing update behind the conditional spread the file already uses for type-specific fields, dropping the transaction from four statements to three. Tests cover the two new collection queries, the route (401 with no lookup, the user's collections, an empty list, 500), the schema field, both item queries (ownership filtering, the add/remove diff, a cleared selection, no links when nothing is picked) and both actions, bringing the suite to 183; the picker isn't unit tested, matching the other item components. Known gaps: a file item still can't have its upload replaced, so the picker is the only new field on that form; the item schemas still carry no .max() bounds, now including the collection selection; and the create and edit forms have duplicated a third field between them. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user, with the popover nested inside the New Item dialog's focus trap as the one interaction worth confirming first.
