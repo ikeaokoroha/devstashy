@@ -6,10 +6,12 @@ import {
   type CreateItemData,
   type UpdateItemData,
 } from "@/lib/item-validation";
+import { getPageSkip, ITEMS_PER_PAGE } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { toSearchPreview } from "@/lib/search";
 import type { ItemStats, ItemTypeWithCount, ItemWithType } from "@/types/dashboard";
 import type { ItemDetail } from "@/types/items";
+import type { Paginated } from "@/types/pagination";
 import type { SearchItem } from "@/types/search";
 
 // Only the fields the dashboard item cards render. The file fields are here for
@@ -82,34 +84,50 @@ export async function getPinnedItems(
   return items.map(toItemWithType);
 }
 
-// All of the user's items of one system type, pinned first, then most recently updated.
+// One page of the user's items of one system type, pinned first, then most
+// recently updated.
 export async function getItemsByType(
   userId: string,
-  typeName: string
-): Promise<ItemWithType[]> {
-  const items = await prisma.item.findMany({
-    where: { userId, itemType: { name: typeName, isSystem: true } },
-    orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
-    select: ITEM_CARD_SELECT,
-  });
+  typeName: string,
+  page: number
+): Promise<Paginated<ItemWithType>> {
+  const where = { userId, itemType: { name: typeName, isSystem: true } };
 
-  return items.map(toItemWithType);
+  return paginateItems(where, page);
 }
 
-// The items in one collection. It lives here rather than in db/collections.ts so
-// it can reuse ITEM_CARD_SELECT — that module is already imported by this one,
-// so the query can't go the other way without a circular import.
+// One page of the items in a collection. It lives here rather than in
+// db/collections.ts so it can reuse ITEM_CARD_SELECT — that module is already
+// imported by this one, so the query can't go the other way without a circular
+// import.
 export async function getItemsByCollection(
   userId: string,
-  collectionId: string
-): Promise<ItemWithType[]> {
-  const items = await prisma.item.findMany({
-    where: { userId, collections: { some: { collectionId } } },
-    orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
-    select: ITEM_CARD_SELECT,
-  });
+  collectionId: string,
+  page: number
+): Promise<Paginated<ItemWithType>> {
+  const where = { userId, collections: { some: { collectionId } } };
 
-  return items.map(toItemWithType);
+  return paginateItems(where, page);
+}
+
+// The page's rows and the total, fetched together. Only the page's rows cross
+// the wire; the count is Postgres's to do.
+async function paginateItems(
+  where: Prisma.ItemWhereInput,
+  page: number
+): Promise<Paginated<ItemWithType>> {
+  const [items, total] = await Promise.all([
+    prisma.item.findMany({
+      where,
+      orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
+      skip: getPageSkip(page, ITEMS_PER_PAGE),
+      take: ITEMS_PER_PAGE,
+      select: ITEM_CARD_SELECT,
+    }),
+    prisma.item.count({ where }),
+  ]);
+
+  return { rows: items.map(toItemWithType), total };
 }
 
 // Just what a command palette row renders and searches. The content is the one

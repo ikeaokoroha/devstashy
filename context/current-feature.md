@@ -1,18 +1,30 @@
-# Current Feature
+# Current Feature: Pagination
 
-<!-- Feature name and short description -->
+Add pagination for items and collections listings with numbered page links.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Paginate the /items/[type] listing pages with numbered page links
+- Paginate the items shown on /collections/[id]
+- Paginate /collections, the only caller COLLECTIONS_PER_PAGE has
+- Render pagination controls at the bottom of the list, with page numbers plus prev/next links
+- Grey out (disable) prev when on the first page and next when on the last page
+- Use `ITEMS_PER_PAGE = 21` and `COLLECTIONS_PER_PAGE = 21` as shared constants
+- Use `DASHBOARD_COLLECTIONS_LIMIT = 6` and `DASHBOARD_RECENT_ITEMS_LIMIT = 10` for the dashboard
+- Fetch only the rows a page needs — no fetching the full list and slicing in memory
 
 ## Notes
 
-<!-- Any extra notes -->
+- Spec: context/features/pagination-spec.md
+- The queries behind these pages are currently unbounded: `getItemsByType`, `getItemsByCollection` and `getAllCollections` in src/lib/db, a known gap carried since Items List View and Collection Pages.
+- "Do not fetch all resources at once" means skip/take on the query plus a separate count, not a `.slice()` after loading everything.
+- The spec's requirement bullet names only /items/[type] and /collections/[id], but COLLECTIONS_PER_PAGE has no other caller, so /collections is in scope. Confirmed with the user before starting.
+- All three pages share one Pagination component, one `{ rows, total }` query shape and one `?page=` parser; /items/[type] covers the ItemGrid, ImageGrid and FileList branches at once.
+- Not in scope: the nested COLLECTION_ITEM_TYPES_SELECT is still unbounded per collection, so a collection with many items loads every join row for its type icons. Pagination caps how many collections do that, not how many rows each one loads — the groupBy fix deferred in Code Scan Quick Wins 2 stays deferred.
 
 ## History
 

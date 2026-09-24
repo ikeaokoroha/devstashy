@@ -10,12 +10,14 @@ import {
   getSearchCollections,
   updateCollection,
 } from "@/lib/db/collections";
+import { COLLECTIONS_PER_PAGE } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     collection: {
       create: vi.fn(),
+      count: vi.fn(),
       findMany: vi.fn(),
       findFirst: vi.fn(),
       updateMany: vi.fn(),
@@ -77,16 +79,21 @@ describe("getAllCollections", () => {
       },
     ] as never);
 
-    expect(await getAllCollections("user-1")).toEqual([
-      {
-        id: "col-1",
-        name: "React Patterns",
-        description: "Hooks and components",
-        isFavorite: true,
-        itemCount: 3,
-        itemTypes: [snippet, note],
-      },
-    ]);
+    vi.mocked(prisma.collection.count).mockResolvedValue(1 as never);
+
+    expect(await getAllCollections("user-1", 1)).toEqual({
+      rows: [
+        {
+          id: "col-1",
+          name: "React Patterns",
+          description: "Hooks and components",
+          isFavorite: true,
+          itemCount: 3,
+          itemTypes: [snippet, note],
+        },
+      ],
+      total: 1,
+    });
     expect(prisma.collection.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId: "user-1" },
@@ -106,11 +113,28 @@ describe("getAllCollections", () => {
         _count: { items: 0 },
       },
     ] as never);
+    vi.mocked(prisma.collection.count).mockResolvedValue(1 as never);
 
-    const [collection] = await getAllCollections("user-1");
+    const { rows } = await getAllCollections("user-1", 1);
 
-    expect(collection.itemCount).toBe(0);
-    expect(collection.itemTypes).toEqual([]);
+    expect(rows[0].itemCount).toBe(0);
+    expect(rows[0].itemTypes).toEqual([]);
+  });
+
+  // The whole point of the pagination: only the page's rows are loaded, and the
+  // total comes from a count rather than from the rows' length.
+  it("takes one page and counts the rest, scoped to the user", async () => {
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.collection.count).mockResolvedValue(64 as never);
+
+    const { rows, total } = await getAllCollections("user-1", 3);
+
+    expect(rows).toEqual([]);
+    expect(total).toBe(64);
+    expect(prisma.collection.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 42, take: COLLECTIONS_PER_PAGE })
+    );
+    expect(prisma.collection.count).toHaveBeenCalledWith({ where: { userId: "user-1" } });
   });
 });
 
