@@ -64,7 +64,7 @@ export default async function ItemsByTypePage({ params }: PageProps<"/items/[typ
       {/* Images get thumbnail tiles and files a Drive-style list; every other
           type keeps the card rows. */}
       {typeName === "image" ? (
-        <ImageGrid items={items} emptyMessage={emptyMessage} />
+        <ImageGrid items={items} emptyMessage={emptyMessage} leading />
       ) : typeName === "file" ? (
         <FileList items={items} emptyMessage={emptyMessage} />
       ) : (

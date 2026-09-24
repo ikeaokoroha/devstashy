@@ -97,7 +97,14 @@ function NewCollectionForm({ isSaving, startSaving, onCreated }: NewCollectionFo
 }
 
 // The top bar's New Collection button and its dialog.
-export function NewCollectionDialog() {
+interface NewCollectionDialogProps {
+  size?: "default" | "lg";
+  className?: string;
+}
+
+// A New Collection button and its dialog: the top bar's, which hides on a phone
+// behind the ⌘K search, or the /collections page header's, which doesn't.
+export function NewCollectionDialog({ size = "lg", className }: NewCollectionDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isSaving, startSaving] = useTransition();
@@ -116,9 +123,7 @@ export function NewCollectionDialog() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button variant="outline" size="lg" className="hidden sm:inline-flex" />}
-      >
+      <DialogTrigger render={<Button variant="outline" size={size} className={className} />}>
         <FolderPlus />
         New Collection
       </DialogTrigger>

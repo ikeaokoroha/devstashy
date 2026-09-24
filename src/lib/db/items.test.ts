@@ -1,11 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createItem, deleteItem, getItemDetail, getItemFile, updateItem } from "@/lib/db/items";
+import {
+  createItem,
+  deleteItem,
+  getItemDetail,
+  getItemFile,
+  getItemsByCollection,
+  updateItem,
+} from "@/lib/db/items";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    item: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
+    item: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      update: vi.fn(),
+      create: vi.fn(),
+      deleteMany: vi.fn(),
+    },
     itemType: { findFirst: vi.fn() },
     // Unlinking a dropped collection, plus the ownership check both item
     // writes run their selection through.
@@ -321,6 +334,36 @@ describe("createItem", () => {
     const [{ data: created }] = vi.mocked(prisma.item.create).mock.calls[0];
     expect(prisma.collection.findMany).not.toHaveBeenCalled();
     expect(created).not.toHaveProperty("collections");
+  });
+});
+
+describe("getItemsByCollection", () => {
+  it("scopes the query to the user and the collection, pinned items first", async () => {
+    vi.mocked(prisma.item.findMany).mockResolvedValue([]);
+
+    expect(await getItemsByCollection("user-1", "col-1")).toEqual([]);
+    expect(prisma.item.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1", collections: { some: { collectionId: "col-1" } } },
+        orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
+      })
+    );
+  });
+
+  it("flattens each item's tags to names for the card", async () => {
+    vi.mocked(prisma.item.findMany).mockResolvedValue([
+      {
+        id: "item-1",
+        title: "useAuth Hook",
+        itemType: { id: "type-1", name: "snippet" },
+        tags: [{ name: "auth" }, { name: "react" }],
+      },
+    ] as never);
+
+    const [item] = await getItemsByCollection("user-1", "col-1");
+
+    expect(item.tags).toEqual(["auth", "react"]);
+    expect(item.itemType).toEqual({ id: "type-1", name: "snippet" });
   });
 });
 

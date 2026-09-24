@@ -1,18 +1,45 @@
-# Current Feature
+# Current Feature: Collection Pages
 
-<!-- Feature name and short description -->
+Add `/collections` (all of the user's collections) and `/collections/[id]` (the items
+inside one collection), built from the existing cards, so the collection links that
+already exist in the sidebar and on the dashboard stop 404ing.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- `/collections` lists every collection the signed-in user owns, using the existing
+  `CollectionCard` from the dashboard's recent-collections section.
+- `/collections/[id]` shows that collection's items, using the existing item card
+  views — `ItemGrid`, plus `ImageGrid`/`FileList` where those already apply.
+- Both pages live in the `(app)` route group, so they share the sidebar, top bar and
+  item drawer, and are scoped to the session user with `requireUserId`.
+- A collection id that doesn't exist, or belongs to another user, 404s.
+- The sidebar's "View all collections" link and every collection card link resolve to
+  real pages.
+- Empty states for a user with no collections and for a collection with no items.
 
 ## Notes
 
-<!-- Any extra notes -->
+- The links are already written: `SidebarCollectionsNav` points at `/collections` and
+  both it and `CollectionCard` point at `/collections/${collection.id}`. Nothing needs
+  rewiring — the routes just don't exist yet, so this feature is what makes them work.
+- New queries go in `src/lib/db/collections.ts` next to `getRecentCollections`, which
+  already returns the `CollectionSummary` shape `CollectionCard` renders (name,
+  description, item count, ranked item types for the border colour and icons).
+- The detail page needs the collection's own row plus its items in `ITEM_CARD_SELECT`
+  shape, so the cards, quick copy and the drawer keep working unchanged.
+- `/collections/:path*` has to join the proxy matcher in `src/proxy.ts`, which
+  currently covers `/dashboard`, `/profile` and `/items` only.
+- Follow the `/items/[type]` page for the header shape (icon tile, title, item count,
+  action on the right) and for `PageProps<"/collections/[id]">` + `generateMetadata`.
+- Out of scope unless asked: renaming, deleting, favoriting a collection, removing an
+  item from a collection, sorting and pagination.
+- Testing per the standards: the new queries in `src/lib/db/collections.ts` get Vitest
+  coverage (ownership scoping, the returned shape, an empty collection); the pages and
+  cards don't, matching the existing component convention.
 
 ## History
 

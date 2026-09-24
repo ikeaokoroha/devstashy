@@ -2,6 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import type { CreateCollectionData } from "@/lib/collection-validation";
 import { prisma } from "@/lib/prisma";
 import type {
+  CollectionDetail,
   CollectionItemType,
   CollectionStats,
   CollectionSummary,
@@ -27,6 +28,21 @@ type SidebarCollectionRow = Prisma.CollectionGetPayload<{
   select: typeof SIDEBAR_COLLECTION_SELECT;
 }>;
 
+// The fields CollectionCard renders, shared by the dashboard's recent cards and
+// the /collections page.
+const COLLECTION_SUMMARY_SELECT = {
+  id: true,
+  name: true,
+  description: true,
+  isFavorite: true,
+  items: COLLECTION_ITEM_TYPES_SELECT,
+  _count: { select: { items: true } },
+} satisfies Prisma.CollectionSelect;
+
+type CollectionSummaryRow = Prisma.CollectionGetPayload<{
+  select: typeof COLLECTION_SUMMARY_SELECT;
+}>;
+
 export async function getCollectionStats(userId: string): Promise<CollectionStats> {
   const [totalCollections, favoriteCollections] = await Promise.all([
     prisma.collection.count({ where: { userId } }),
@@ -44,21 +60,42 @@ export async function getRecentCollections(
     where: { userId },
     orderBy: { updatedAt: "desc" },
     take: limit,
+    select: COLLECTION_SUMMARY_SELECT,
+  });
+
+  return collections.map(toCollectionSummary);
+}
+
+// Every collection the user owns, for the /collections page. Unbounded like the
+// item list pages, which have no pagination either.
+export async function getAllCollections(userId: string): Promise<CollectionSummary[]> {
+  const collections = await prisma.collection.findMany({
+    where: { userId },
+    orderBy: [{ isFavorite: "desc" }, { updatedAt: "desc" }],
+    select: COLLECTION_SUMMARY_SELECT,
+  });
+
+  return collections.map(toCollectionSummary);
+}
+
+// One collection's own row for the detail page header. findFirst on id and
+// userId, so another user's id finds nothing and the page 404s.
+export async function getCollectionDetail(
+  userId: string,
+  collectionId: string
+): Promise<CollectionDetail | null> {
+  const collection = await prisma.collection.findFirst({
+    where: { id: collectionId, userId },
     select: {
       id: true,
       name: true,
       description: true,
       isFavorite: true,
-      items: COLLECTION_ITEM_TYPES_SELECT,
-      _count: { select: { items: true } },
+      createdAt: true,
     },
   });
 
-  return collections.map(({ items, _count, ...collection }) => ({
-    ...collection,
-    itemCount: _count.items,
-    itemTypes: rankItemTypes(items.map(({ item }) => item.itemType)),
-  }));
+  return collection;
 }
 
 // The most recently updated favorite and non-favorite collections, capped separately.
@@ -132,6 +169,18 @@ export async function createCollection(
   });
 
   return collection.id;
+}
+
+function toCollectionSummary({
+  items,
+  _count,
+  ...collection
+}: CollectionSummaryRow): CollectionSummary {
+  return {
+    ...collection,
+    itemCount: _count.items,
+    itemTypes: rankItemTypes(items.map(({ item }) => item.itemType)),
+  };
 }
 
 function toSidebarCollection({ items, ...collection }: SidebarCollectionRow): SidebarCollection {

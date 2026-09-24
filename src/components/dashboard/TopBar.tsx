@@ -24,7 +24,7 @@ export function TopBar() {
       </div>
 
       <div className="flex flex-1 items-center justify-end gap-2">
-        <NewCollectionDialog />
+        <NewCollectionDialog className="hidden sm:inline-flex" />
         <NewItemDialog />
       </div>
     </header>

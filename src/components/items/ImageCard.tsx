@@ -22,9 +22,12 @@ const THUMBNAIL_SIZES = "(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 400
 
 interface ImageCardProps {
   item: ItemWithType;
+  // Set on the grid's leading tiles when the grid is a page's first content, so
+  // the one the browser picks as LCP isn't lazily loaded.
+  priority?: boolean;
 }
 
-export function ImageCard({ item }: ImageCardProps) {
+export function ImageCard({ item, priority = false }: ImageCardProps) {
   const { icon: Icon, textClass, borderClass } = getItemTypeStyle(item.itemType.name);
   const copyText = getCardCopyText(item);
 
@@ -48,6 +51,7 @@ export function ImageCard({ item }: ImageCardProps) {
             alt={item.title}
             fill
             sizes={THUMBNAIL_SIZES}
+            priority={priority}
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
