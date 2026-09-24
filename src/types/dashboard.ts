@@ -25,6 +25,16 @@ export interface CollectionSummary {
   itemTypes: CollectionItemType[];
 }
 
+// One collection's own row, for the /collections/[id] header. Its items come
+// from getItemsByCollection rather than being nested here.
+export interface CollectionDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  isFavorite: boolean;
+  createdAt: Date;
+}
+
 export interface ItemTypeWithCount {
   id: string;
   name: string;

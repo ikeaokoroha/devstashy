@@ -94,6 +94,22 @@ export async function getItemsByType(
   return items.map(toItemWithType);
 }
 
+// The items in one collection. It lives here rather than in db/collections.ts so
+// it can reuse ITEM_CARD_SELECT — that module is already imported by this one,
+// so the query can't go the other way without a circular import.
+export async function getItemsByCollection(
+  userId: string,
+  collectionId: string
+): Promise<ItemWithType[]> {
+  const items = await prisma.item.findMany({
+    where: { userId, collections: { some: { collectionId } } },
+    orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
+    select: ITEM_CARD_SELECT,
+  });
+
+  return items.map(toItemWithType);
+}
+
 const ITEM_DETAIL_SELECT = {
   id: true,
   title: true,
