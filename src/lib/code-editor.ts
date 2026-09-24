@@ -2,8 +2,10 @@
 const CODE_TYPES = new Set(["snippet", "command"]);
 
 export const EDITOR_MAX_HEIGHT = 400;
-export const EDITOR_LINE_HEIGHT = 18;
 export const EDITOR_PADDING = 12;
+// Line height follows the font size preference rather than being fixed: at 18px a
+// fixed 18px line clips the text, and at 11px it leaves a gap.
+export const EDITOR_LINE_HEIGHT_RATIO = 1.5;
 // Editing starts with room to type; a read-only one-liner stays one line tall.
 export const EDITOR_MIN_HEIGHT = { edit: 120, readOnly: 0 };
 
@@ -88,6 +90,10 @@ export function getEditorLanguage(language: string | null | undefined, typeName:
   return MONACO_LANGUAGES.has(id) ? id : "plaintext";
 }
 
+export function getEditorLineHeight(fontSize: number): number {
+  return Math.round(fontSize * EDITOR_LINE_HEIGHT_RATIO);
+}
+
 // The editor grows with its content, from the mode's minimum up to the 400px cap.
 export function getEditorHeight(contentHeight: number, readOnly: boolean): number {
   const min = readOnly ? EDITOR_MIN_HEIGHT.readOnly : EDITOR_MIN_HEIGHT.edit;
@@ -96,7 +102,7 @@ export function getEditorHeight(contentHeight: number, readOnly: boolean): numbe
 
 // Monaco's content height for unwrapped text, used to size the editor before it
 // loads so it doesn't jump once it measures itself.
-export function estimateContentHeight(value: string): number {
+export function estimateContentHeight(value: string, lineHeight: number): number {
   const lines = value.split("\n").length;
-  return lines * EDITOR_LINE_HEIGHT + EDITOR_PADDING * 2;
+  return lines * lineHeight + EDITOR_PADDING * 2;
 }

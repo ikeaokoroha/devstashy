@@ -24,6 +24,10 @@ model User {
   stripeCustomerId     String? @unique
   stripeSubscriptionId String? @unique
 
+  // Monaco editor settings. Null means "never changed them", which reads as the
+  // current defaults — a stored default object would freeze today's values instead.
+  editorPreferences Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

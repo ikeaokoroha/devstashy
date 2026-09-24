@@ -1,18 +1,49 @@
-# Current Feature
+# Current Feature: Editor Preferences Settings
 
-<!-- Feature name and short description -->
+An Editor Preferences section on /settings that stores Monaco editor preferences on the
+User row and applies them to the code editor, saving automatically as each control changes.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Add a `editorPreferences` JSON column to the User model, through a Prisma migration
+  (`prisma migrate dev` on the development branch — never `db push`)
+- Add an Editor Preferences card to /settings with:
+  - Font size dropdown
+  - Tab size dropdown
+  - Word wrap toggle (default: on)
+  - Minimap toggle (default: off)
+  - Theme dropdown: vs-dark, monokai, github-dark (default: vs-dark)
+- Server action to update the preferences, scoped to the signed-in user
+- Auto-save on every change, with no save button, and a success toast on save
+- An EditorPreferencesContext so client components can read the preferences
+- Apply the preferences to the Monaco editor (`src/components/items/CodeEditor.tsx`)
 
 ## Notes
 
-<!-- Any extra notes -->
+- Settings lives at `src/app/(app)/settings/page.tsx` with its components in
+  `src/components/settings`; the page already scopes to the signed-in user through
+  `requireUserId`. Actions would follow `src/actions/profile.ts`.
+- `CodeEditor.tsx` currently hardcodes `fontSize: 12`, `tabSize: 2`,
+  `minimap: { enabled: false }` and its own `devstash-dark` theme (a `vs-dark` base with
+  transparent editor and gutter backgrounds so the frame's `bg-muted/40` shows through);
+  it doesn't set `wordWrap` at all. The preferences replace those four values.
+- Monaco ships `vs`, `vs-dark` and `hc-black` only — `monokai` and `github-dark` aren't
+  built in, so each needs a `defineTheme` colour set, and each should keep the
+  transparent-background treatment so the window frame still works.
+- CodeEditor is used read-only in the drawer's view mode and editable in `ContentField`
+  (New Item dialog and the drawer's edit form), so the context has to reach both; only
+  snippets and commands use it, while prompts and notes use `MarkdownEditor`, which the
+  spec doesn't cover.
+- To decide during load/start: the option lists for font size and tab size (the spec only
+  says "dropdown"), whether a failed auto-save reverts the control, and whether every
+  change fires a toast or only a settled one (debounced) — a toast per keystroke-equivalent
+  change would be noisy.
+- Tests per the Testing section: the new server action and any preferences utility
+  (defaults, parsing/validating the JSON column) get Vitest coverage; components don't.
 
 ## History
 
