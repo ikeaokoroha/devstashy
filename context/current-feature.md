@@ -1,63 +1,18 @@
-# Current Feature: Favorites Sorting
+# Current Feature
 
-Client-side sorting on /favorites — sort the favorited items and collections by
-name, date or item type without a server round trip.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- A sort control on the /favorites page header offering Name, Date and Item type.
-- Sorting happens in the browser over the rows already fetched — no refetch, no
-  page reload, no new query.
-- Both sections reorder: Items by all three keys, Collections by the keys that
-  apply to it (see Notes on item type).
-- The sort choice persists while the user is on the page and is reflected in the
-  control; dropping it on navigation is acceptable.
-- The rows themselves are unchanged — same dense mono layout, same star, same
-  drawer/link behaviour, same empty state.
-- tsc, eslint, `npm run test:run` and `npm run build` all pass; unit tests cover
-  the comparator logic in `src/lib/favorites.ts` (utilities are testable, the
-  components are not, per the Testing section).
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Current page: `src/app/(app)/favorites/page.tsx` is a server component running
-  `getFavoriteItems` and `getFavoriteCollections` in parallel (capped at
-  `FAVORITES_LIMIT`, not paginated), rendering `FavoritesSection` with
-  `FavoriteItemRow` / `FavoriteCollectionRow`. Both rows are server components
-  today; the only client parts inside them are `OpenItemButton` and
-  `FavoriteButton`.
-- Sorting client-side means the rows have to be produced under a client
-  component. Two shapes to pick from at start:
-  1. A client wrapper that takes the plain arrays and renders the rows itself —
-     the rows become client components. They're presentational (Badge, Link,
-     icons, the two existing client buttons), so nothing blocks it, and `Date`
-     serializes across the RSC boundary.
-  2. Keep the rows server-rendered and have a client wrapper reorder
-     pre-rendered children by a sort key passed alongside them.
-  Option 1 is simpler; option 2 keeps more of the page server-rendered.
-- Data available per row: items are `FavoriteItem` (`ItemPreview & { updatedAt }`
-  — id, title, isFavorite, isPinned, itemType, updatedAt); collections are
-  `FavoriteCollection` (id, name, itemCount, updatedAt). Neither query needs to
-  change.
-- Item type doesn't exist on a collection. Decide at start: either hide/disable
-  the Item type option for the Collections section, sort collections by name
-  under it, or leave the collections order untouched when it's selected.
-- Sort direction isn't in the request. Suggested default: name and item type
-  ascending, date descending (newest first, matching the current order, which is
-  `updatedAt` desc from the queries). A direction toggle is out of scope unless
-  asked for.
-- Ties: fall back to name so the order is stable, since item type and date can
-  repeat across rows.
-- `updatedAt` is `@updatedAt`, so "date" here is last-updated, not
-  date-favorited — the same known gap the Favorites Page shipped with.
-- Existing UI parts to reuse: the shadcn `select` (added for Editor Preferences)
-  or `dropdown-menu`; no new dependency.
-- Sort helpers belong in `src/lib/favorites.ts` next to `formatFavoriteDate`, so
-  they're unit-testable without jsdom.
+<!-- Any extra notes -->
 
 ## History
 
@@ -194,3 +149,6 @@ Added /favorites, listing every favorited item and collection as one dense mono-
 
 Favorite Toggle
 The favorite stars work now, on every surface that shows an item or a collection: the item drawer, the `/collections/[id]` header, the collection card three-dot menu, all three item card shapes (ItemCard, ImageCard, FileRow) and both /favorites rows, which were pulled in on request since unfavoriting from the page that lists favorites is the obvious use. Pin is untouched and still display only. No migration: Item.isFavorite and Collection.isFavorite already existed with @default(false), and isFavorite was already in ITEM_CARD_SELECT, FAVORITE_ITEM_SELECT, COLLECTION_SUMMARY_SELECT and the search selects, so every card query already carried it. setItemFavorite and setCollectionFavorite use updateMany on id + userId rather than update, since there's no unique (id, userId) — the ownership check and the write are one statement, so another user's id updates nothing — and each returns whether a row was affected, matching deleteItem and updateCollection. Both take the value to write rather than flipping whatever the row holds, so two clicks in flight can't settle on the wrong one; the toggleItemFavorite and toggleCollectionFavorite actions pass the state the UI is already showing straight through, and otherwise follow the existing shape exactly (requireUserId, the module's id schema, "Item not found." / "Collection not found." when nothing was affected, a generic message in try/catch). The shared client piece is useFavoriteToggle in src/hooks: the flip shows immediately, a failure rolls it back with an error toast, and a success calls router.refresh() so the sidebar's favorites group, the two favorite-count stat cards and /favorites all follow — nothing is cached with tags, so a refresh is enough. There is no success toast, since the star is its own confirmation and one per click would be noise, and the button is never disabled mid-save, so a keyboard user doesn't lose focus for a round trip. A request count settles a burst of clicks: only the newest may toast or roll back. The hook also adopts a changed server value during render, which is what makes the card behind the drawer update once the drawer's own toggle refreshes the route. The rollback went one round: it first kept the last known saved value in a ref, updated both in the save callback and in that server-value sync, but react-hooks/refs rejects writing a ref during render, so it now targets the value from before the click — correct in every case except two consecutive failures in one burst, which roll back one step short and are corrected by the next refresh. FavoriteButton in src/components/shared renders the icon-only and labelled variants over the hook, keyed by a kind of "item" or "collection" so one component covers both actions, and sits at relative z-10 above each card's OpenItemButton overlay or overlay link — the fix the image gallery found and the file list and copy button reused — which is what keeps all three card shapes and both favorites rows server components. CollectionCardMenu is the one call site that uses the hook directly rather than the button, since its entry is a DropdownMenuItem and not a button of its own; its label reads Favorite or Unfavorite, because the menu closes on click and the star it toggles isn't visible afterwards. On the item cards the passive star mark next to the title was replaced by the toggle rather than joined by it, so a card has one star: it sits beside Copy in ItemCard's bottom-right column, before Copy in ImageCard's footer and first in FileRow's button group. Collection cards keep their passive mark next to the name, since the menu is the toggle there, and it updates on the refresh. FavoriteCollectionRow had to be restructured from a Link wrapping the whole row into a container with an absolute overlay link, because a button can't sit inside a link — the same restructuring CollectionCard went through for its menu — and it passes isFavorite as a literal true, since the query's `where` is what puts the row on the page; adding the column to the light select was considered and dropped. Sixteen tests cover the two queries (the scoped where clause, the written value in both directions, the affected-count mapping) and the two actions (blank id short-circuiting before the database, the state passed through in both directions, not found, a database error), bringing the suite to 331; the hook and the components aren't unit tested, matching the convention and the Vitest config's lack of jsdom. One debugging round after the browser check: collection toggles appeared to do nothing while item toggles worked, and the dev branch showed no Collection write at all next to fresh Item writes. Everything checkable statically held up — .env pointing at the development endpoint, both actions present in the running dev server's reference manifest, the collections owned by the signed-in user, the query and action correct — and it worked on retest, so it was a stale dev-server action reference rather than a bug; the hook's catch now logs the exception it had been swallowing, so a repeat says why instead of only toasting. Known gaps: Pin is still display only everywhere; a card toggle doesn't reach an open drawer showing the same item, since the drawer's detail is client state that only refetches on open (the reverse direction does work, through the render-time adoption); updatedAt is @updatedAt, so toggling a favorite bumps it and reorders the recent lists and /favorites, which sorts on it — a true favoritedAt would need a migration; and /favorites keeps its FAVORITES_LIMIT cap rather than paginating. Verified with tsc, eslint, the Vitest suite and next build, and confirmed working in the browser.
+
+Favorites Sorting
+/favorites gained a sort control offering Newest, Title and Item type, reordering both sections in the browser over the rows already fetched — no refetch, no new query and no change to getFavoriteItems or getFavoriteCollections, which still run in parallel under the FAVORITES_LIMIT cap. Labels say what the sort does rather than which column it reads: Newest because date is descending, and Title because that's the item field, while a collection has only a name. The page keeps its header, star tile, count and the dashed empty state server-rendered and hands both arrays to FavoritesList, a new client component holding the sort state; FavoriteItemRow and FavoriteCollectionRow moved to the client with it, which is the one structural cost of sorting without a round trip. They're presentational — Badge, Link, icons and the two client buttons they already contained — and Date serializes across the RSC boundary, so neither row changed beyond the directive and a stale "stays a server component" comment. The alternative considered was keeping the rows server-rendered and having a thin client wrapper reorder pre-rendered elements by sort keys passed alongside them, which keeps more of the page on the server but duplicates every sort key next to its element. sortFavoriteItems and sortFavoriteCollections live in src/lib/favorites.ts beside formatFavoriteDate, so they're unit-testable without jsdom: each copies before sorting, since the array is a prop and sort() would reorder what the server handed down. They compare lowercased strings with plain </> rather than localeCompare — the list still server-renders for the initial HTML, so the comparator runs once in Node and again in the browser, and only an exact comparison is guaranteed to order the same way across ICU builds. Title and type read ascending, date descending (newest first, which is the order both queries already return, so the default sort leaves the first paint exactly as it was), and title is the tie-break throughout, since a type and a date both repeat across rows and an unstable order would shuffle on a re-render. A collection has no item type, so it falls back to its name under that key rather than sitting still while the items above it reorder. FAVORITE_SORT_OPTIONS is the single source for both the union type's labels and the select, so adding a key is one edit. FavoritesSortSelect is a controlled shadcn Select (size="sm") with the SelectValue render function Base UI needs to avoid showing the raw value — the gotcha EditorPreferencesCard hit — and sits right-aligned in its own row above the sections rather than on the header line, since putting it there would mean pulling the h1 and count into the client component too. Twelve tests cover both comparators (each key, the title tie-break under type and under a shared date, collections falling back to name, and that neither mutates its input) plus the options list having no duplicate values and containing the default, bringing the suite to 343; the three components aren't unit tested, matching the convention and the Vitest config's lack of jsdom. Known gaps: the sort resets on navigation, since it's component state rather than a URL param or a stored preference; updatedAt is @updatedAt, so Newest is last-updated rather than date-favorited, and toggling a favorite bumps a row to the top — the gap the Favorites Page shipped with; there's no direction toggle, each key having one fixed direction; and the rows are on the client now, so the page ships slightly more JavaScript than it did. Verified with tsc, eslint, the Vitest suite and next build, with /favorites still dynamic in the build output; the browser check was left to the user.
