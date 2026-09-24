@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Star, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
+import { FavoriteButton } from "@/components/shared/FavoriteButton";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { DeleteCollectionDialog } from "./DeleteCollectionDialog";
 import { EditCollectionDialog, type EditableCollection } from "./EditCollectionDialog";
 
@@ -14,8 +14,7 @@ interface CollectionActionsProps {
   isFavorite: boolean;
 }
 
-// The /collections/[id] header's actions. Edit and Delete work; Favorite is
-// display only for now, like the item drawer's.
+// The /collections/[id] header's actions.
 export function CollectionActions({ collection, isFavorite }: CollectionActionsProps) {
   const router = useRouter();
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -29,10 +28,13 @@ export function CollectionActions({ collection, isFavorite }: CollectionActionsP
 
   return (
     <div className="flex items-center gap-1">
-      <Button variant="ghost" size="sm" aria-pressed={isFavorite}>
-        <Star className={cn(isFavorite && "fill-yellow-400 text-yellow-400")} />
-        <span className={cn(isFavorite && "text-yellow-400")}>Favorite</span>
-      </Button>
+      <FavoriteButton
+        kind="collection"
+        id={collection.id}
+        name={collection.name}
+        isFavorite={isFavorite}
+        showLabel
+      />
       <Button variant="ghost" size="sm" onClick={() => setIsEditOpen(true)}>
         <Pencil />
         Edit

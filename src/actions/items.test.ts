@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createItem, deleteItem, updateItem } from "@/actions/items";
+import { createItem, deleteItem, toggleItemFavorite, updateItem } from "@/actions/items";
 import {
   createItem as createItemQuery,
   deleteItem as deleteItemQuery,
+  setItemFavorite,
   updateItem as updateItemQuery,
 } from "@/lib/db/items";
 import { deleteObject } from "@/lib/r2";
@@ -23,6 +24,7 @@ vi.mock("@/lib/db/items", () => ({
   createItem: vi.fn(),
   updateItem: vi.fn(),
   deleteItem: vi.fn(),
+  setItemFavorite: vi.fn(),
 }));
 
 const input = {
@@ -272,6 +274,51 @@ describe("deleteItem", () => {
     expect(result).toEqual({
       success: false,
       error: "Couldn't delete this item. Please try again.",
+    });
+  });
+});
+
+describe("toggleItemFavorite", () => {
+  it("rejects an empty id without touching the database", async () => {
+    const result = await toggleItemFavorite("", true);
+
+    expect(result).toEqual({ success: false, error: "Item not found." });
+    expect(setItemFavorite).not.toHaveBeenCalled();
+  });
+
+  // The action passes the state the UI is already showing straight through, so
+  // the database never has to read the row to flip it.
+  it("saves the requested state for the signed-in user", async () => {
+    vi.mocked(setItemFavorite).mockResolvedValue(true);
+
+    expect(await toggleItemFavorite("item-1", true)).toEqual({ success: true });
+    expect(setItemFavorite).toHaveBeenCalledWith("user-1", "item-1", true);
+  });
+
+  it("passes false through when unfavoriting", async () => {
+    vi.mocked(setItemFavorite).mockResolvedValue(true);
+
+    await toggleItemFavorite("item-1", false);
+
+    expect(setItemFavorite).toHaveBeenCalledWith("user-1", "item-1", false);
+  });
+
+  it("reports not found when the item isn't the user's", async () => {
+    vi.mocked(setItemFavorite).mockResolvedValue(false);
+
+    expect(await toggleItemFavorite("someone-elses-item", true)).toEqual({
+      success: false,
+      error: "Item not found.",
+    });
+  });
+
+  it("returns a friendly error when the database fails", async () => {
+    vi.mocked(setItemFavorite).mockRejectedValue(new Error("connection lost"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await toggleItemFavorite("item-1", true)).toEqual({
+      success: false,
+      error: "Couldn't update this item. Please try again.",
     });
   });
 });

@@ -6,6 +6,7 @@ import { fieldErrorResult } from "@/lib/action-errors";
 import {
   createItem as createItemQuery,
   deleteItem as deleteItemQuery,
+  setItemFavorite,
   updateItem as updateItemQuery,
 } from "@/lib/db/items";
 import {
@@ -130,5 +131,31 @@ export async function deleteItem(itemId: string): Promise<ActionResult> {
   } catch (error) {
     console.error("Failed to delete item", error);
     return { success: false, error: "Couldn't delete this item. Please try again." };
+  }
+}
+
+// Favorites or unfavorites an item from a card, a favorites row or the drawer.
+// The caller passes the state it wants rather than asking for a flip, so a
+// double click lands on the value the UI is already showing.
+export async function toggleItemFavorite(
+  itemId: string,
+  isFavorite: boolean
+): Promise<ActionResult> {
+  const userId = await requireUserId();
+
+  const parsedId = itemIdSchema.safeParse(itemId);
+  if (!parsedId.success) {
+    return { success: false, error: "Item not found." };
+  }
+
+  try {
+    const updated = await setItemFavorite(userId, parsedId.data, isFavorite);
+    if (!updated) {
+      return { success: false, error: "Item not found." };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to update item favorite", error);
+    return { success: false, error: "Couldn't update this item. Please try again." };
   }
 }

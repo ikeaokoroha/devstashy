@@ -397,6 +397,23 @@ export async function deleteItem(userId: string, itemId: string): Promise<Delete
   return { deleted: true, fileUrl: existing?.fileUrl ?? null };
 }
 
+// Sets an item's favorite flag to an explicit value rather than flipping it, so
+// two clicks in flight can't settle on the wrong one. updateMany rather than
+// update, since there's no unique (id, userId): the ownership check and the
+// write are one statement, so another user's id updates nothing.
+export async function setItemFavorite(
+  userId: string,
+  itemId: string,
+  isFavorite: boolean
+): Promise<boolean> {
+  const { count } = await prisma.item.updateMany({
+    where: { id: itemId, userId },
+    data: { isFavorite },
+  });
+
+  return count > 0;
+}
+
 export async function getRecentItems(
   userId: string,
   limit: number

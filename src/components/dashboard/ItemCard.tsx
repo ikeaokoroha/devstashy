@@ -1,9 +1,10 @@
-import { Pin, Star } from "lucide-react";
+import { Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { CopyItemButton } from "@/components/items/CopyItemButton";
 import { OpenItemButton } from "@/components/items/OpenItemButton";
+import { FavoriteButton } from "@/components/shared/FavoriteButton";
 import { getCardCopyText } from "@/lib/item-detail";
 import { getItemTypeStyle } from "@/lib/item-types";
 import type { ItemWithType } from "@/types/dashboard";
@@ -48,12 +49,6 @@ export function ItemCard({ item }: ItemCardProps) {
           {item.isPinned && (
             <Pin aria-label="Pinned" className="size-3.5 shrink-0 text-muted-foreground" />
           )}
-          {item.isFavorite && (
-            <Star
-              aria-label="Favorite"
-              className="size-3.5 shrink-0 fill-yellow-400 text-yellow-400"
-            />
-          )}
         </div>
         {item.description && (
           <p className="line-clamp-1 text-sm text-muted-foreground">
@@ -71,10 +66,10 @@ export function ItemCard({ item }: ItemCardProps) {
         )}
       </div>
 
-      {/* Date top-right, copy bottom-right: self-stretch spans the card's height,
-          which the card's items-start would otherwise collapse, so justify-between
-          reaches both corners. -mr-2 sits the ghost button in the card's padding,
-          and the date cancels it to stay flush with the edge. */}
+      {/* Date top-right, actions bottom-right: self-stretch spans the card's
+          height, which the card's items-start would otherwise collapse, so
+          justify-between reaches both corners. -mr-2 sits the ghost buttons in
+          the card's padding, and the date cancels it to stay flush with the edge. */}
       <div className="-mr-2 flex shrink-0 flex-col items-end justify-between gap-1 self-stretch">
         <time
           dateTime={item.updatedAt.toISOString()}
@@ -82,9 +77,18 @@ export function ItemCard({ item }: ItemCardProps) {
         >
           {DATE_FORMATTER.format(item.updatedAt)}
         </time>
-        {copyText && (
-          <CopyItemButton title={item.title} text={copyText} size="icon-sm" />
-        )}
+        <div className="flex items-center gap-0.5">
+          <FavoriteButton
+            kind="item"
+            id={item.id}
+            name={item.title}
+            isFavorite={item.isFavorite}
+            size="icon-sm"
+          />
+          {copyText && (
+            <CopyItemButton title={item.title} text={copyText} size="icon-sm" />
+          )}
+        </div>
       </div>
     </Card>
   );

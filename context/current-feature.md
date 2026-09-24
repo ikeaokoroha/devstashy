@@ -1,18 +1,30 @@
-# Current Feature
+# Current Feature: Favorite Toggle
 
-<!-- Feature name and short description -->
+Make the Favorite stars actually work — in the item drawer, on the collection detail page, and on the cards — so items and collections can be favorited and unfavorited from the UI instead of only in the database.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Two server actions in the existing shape (`requireUserId`, `{ success, data, error }`, generic message in try/catch): toggle an item's favorite and toggle a collection's favorite, each taking the id and the desired next state rather than flipping blind, so a double click can't race itself into the wrong value.
+- Two queries using `updateMany` on `id` + `userId` (no unique `(id, userId)`, so ownership and write stay one statement), returning whether a row was affected — matching `updateCollection` / `deleteCollection` and `deleteItem`.
+- The item drawer's Favorite button (`ItemDrawerActions`) works: it flips immediately, saves, rolls back and toasts on failure, and `router.refresh()` so the cards, the sidebar's favorites group and the favorite-count stat cards behind it update.
+- The `/collections/[id]` header's Favorite button (`CollectionActions`) works the same way.
+- The collection card three-dot menu's Favorite entry (`CollectionCardMenu`) works, on `/collections` and the dashboard.
+- Item cards get a working star instead of the display-only mark they show now — `ItemCard`, plus `ImageCard` and `FileRow`, which are the other two card shapes on `/items/[type]` and inside a collection.
+- Unit tests for the two actions and the two queries in the existing style (not found, success, database error, the scoped where clause); components stay untested per the Testing section.
 
 ## Notes
 
-<!-- Any extra notes -->
+- No migration: `Item.isFavorite` and `Collection.isFavorite` already exist with `@default(false)`, and `isFavorite` is already in `ITEM_CARD_SELECT`, `FAVORITE_ITEM_SELECT`, `COLLECTION_SUMMARY_SELECT` and the search selects.
+- The three card shapes and both collection surfaces are server components. The toggle has to be a small client island sitting above `OpenItemButton`'s overlay with `relative z-10`, the way `CopyItemButton` does, so favoriting doesn't open the drawer or navigate to the collection — that keeps the cards server-rendered.
+- One shared `FavoriteButton` rather than a star per surface: the drawer wants an icon plus a "Favorite" label, the cards want icon-only, and the collection menu wants a `DropdownMenuItem`, so the shared piece is likely the toggle logic (a hook over the action, with the optimistic flip, rollback and refresh) with each surface rendering its own trigger.
+- Pin is display-only too, in the drawer and as a card mark. It is not in this spec — same plumbing, but only Favorite was asked for.
+- `/favorites` renders both lists already, so unfavoriting from that page is the obvious follow-on question: its rows are `FavoriteItemRow` and `FavoriteCollectionRow`, not the cards named above. Decide at `start` whether they get the toggle now or in a follow-up (removing the row you're standing on needs the refresh to drop it cleanly).
+- The favorite-count stat cards, the sidebar's favorites group and `/favorites` all read `isFavorite`, so every toggle needs the `router.refresh()` to keep those in sync; nothing is cached with tags, so a refresh is enough.
+- `updatedAt` is `@updatedAt`, so toggling a favorite bumps it and reorders the recent lists and `/favorites` (which sorts on it). Acceptable, but worth naming — a true `favoritedAt` would need a migration.
 
 ## History
 

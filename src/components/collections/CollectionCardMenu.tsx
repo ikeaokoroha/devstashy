@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MoreHorizontal, Pencil, Star, Trash2 } from "lucide-react";
 
+import { toggleCollectionFavorite } from "@/actions/collections";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useFavoriteToggle } from "@/hooks/use-favorite-toggle";
 import { cn } from "@/lib/utils";
 import { DeleteCollectionDialog } from "./DeleteCollectionDialog";
 import { EditCollectionDialog, type EditableCollection } from "./EditCollectionDialog";
@@ -29,6 +31,13 @@ export function CollectionCardMenu({ collection, isFavorite }: CollectionCardMen
   const router = useRouter();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  // The hook lives here rather than in a FavoriteButton, since the menu entry is
+  // a DropdownMenuItem and not a button of its own.
+  const favorite = useFavoriteToggle({
+    isFavorite,
+    save: (next) => toggleCollectionFavorite(collection.id, next),
+    errorMessage: "Couldn't update this collection. Please try again.",
+  });
 
   return (
     <div className="relative z-10">
@@ -50,10 +59,11 @@ export function CollectionCardMenu({ collection, isFavorite }: CollectionCardMen
             <Pencil />
             Edit
           </DropdownMenuItem>
-          {/* Display only for now, like the item drawer's Favorite. */}
-          <DropdownMenuItem aria-pressed={isFavorite}>
-            <Star className={cn(isFavorite && "fill-yellow-400 text-yellow-400")} />
-            Favorite
+          <DropdownMenuItem aria-pressed={favorite.isFavorite} onClick={favorite.toggle}>
+            <Star
+              className={cn(favorite.isFavorite && "fill-yellow-400 text-yellow-400")}
+            />
+            {favorite.isFavorite ? "Unfavorite" : "Favorite"}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

@@ -9,6 +9,7 @@ import {
   getItemsByCollection,
   getItemsByType,
   getSearchItems,
+  setItemFavorite,
   updateItem,
 } from "@/lib/db/items";
 import { FAVORITES_LIMIT, ITEMS_PER_PAGE } from "@/lib/pagination";
@@ -21,6 +22,7 @@ vi.mock("@/lib/prisma", () => ({
       findFirst: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       create: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -482,6 +484,37 @@ describe("deleteItem", () => {
       deleted: false,
       fileUrl: null,
     });
+  });
+});
+
+describe("setItemFavorite", () => {
+  it("writes the value it was given, scoped to the user", async () => {
+    vi.mocked(prisma.item.updateMany).mockResolvedValue({ count: 1 });
+
+    expect(await setItemFavorite("user-1", "item-1", true)).toBe(true);
+    expect(prisma.item.updateMany).toHaveBeenCalledWith({
+      where: { id: "item-1", userId: "user-1" },
+      data: { isFavorite: true },
+    });
+  });
+
+  // Unfavoriting writes false rather than flipping whatever the row holds, so two
+  // clicks in flight can't settle on the wrong value.
+  it("writes false when unfavoriting", async () => {
+    vi.mocked(prisma.item.updateMany).mockResolvedValue({ count: 1 });
+
+    await setItemFavorite("user-1", "item-1", false);
+
+    expect(prisma.item.updateMany).toHaveBeenCalledWith({
+      where: { id: "item-1", userId: "user-1" },
+      data: { isFavorite: false },
+    });
+  });
+
+  it("reports nothing updated for another user's item", async () => {
+    vi.mocked(prisma.item.updateMany).mockResolvedValue({ count: 0 });
+
+    expect(await setItemFavorite("user-1", "someone-elses-item", true)).toBe(false);
   });
 });
 

@@ -3,11 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createCollection,
   deleteCollection,
+  toggleCollectionFavorite,
   updateCollection,
 } from "@/actions/collections";
 import {
   createCollection as createCollectionQuery,
   deleteCollection as deleteCollectionQuery,
+  setCollectionFavorite,
   updateCollection as updateCollectionQuery,
 } from "@/lib/db/collections";
 
@@ -16,6 +18,7 @@ vi.mock("@/lib/db/collections", () => ({
   createCollection: vi.fn(),
   updateCollection: vi.fn(),
   deleteCollection: vi.fn(),
+  setCollectionFavorite: vi.fn(),
 }));
 
 const input = { name: "  React Patterns ", description: "" };
@@ -133,6 +136,51 @@ describe("deleteCollection", () => {
     expect(await deleteCollection("col-1")).toEqual({
       success: false,
       error: "Couldn't delete this collection. Please try again.",
+    });
+  });
+});
+
+describe("toggleCollectionFavorite", () => {
+  it("rejects an empty id without touching the database", async () => {
+    const result = await toggleCollectionFavorite("", true);
+
+    expect(result).toEqual({ success: false, error: "Collection not found." });
+    expect(setCollectionFavorite).not.toHaveBeenCalled();
+  });
+
+  // The action passes the state the UI is already showing straight through, so
+  // the database never has to read the row to flip it.
+  it("saves the requested state for the signed-in user", async () => {
+    vi.mocked(setCollectionFavorite).mockResolvedValue(true);
+
+    expect(await toggleCollectionFavorite("col-1", true)).toEqual({ success: true });
+    expect(setCollectionFavorite).toHaveBeenCalledWith("user-1", "col-1", true);
+  });
+
+  it("passes false through when unfavoriting", async () => {
+    vi.mocked(setCollectionFavorite).mockResolvedValue(true);
+
+    await toggleCollectionFavorite("col-1", false);
+
+    expect(setCollectionFavorite).toHaveBeenCalledWith("user-1", "col-1", false);
+  });
+
+  it("reports not found when the collection isn't the user's", async () => {
+    vi.mocked(setCollectionFavorite).mockResolvedValue(false);
+
+    expect(await toggleCollectionFavorite("someone-elses", true)).toEqual({
+      success: false,
+      error: "Collection not found.",
+    });
+  });
+
+  it("returns a friendly error when the database fails", async () => {
+    vi.mocked(setCollectionFavorite).mockRejectedValue(new Error("connection lost"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await toggleCollectionFavorite("col-1", true)).toEqual({
+      success: false,
+      error: "Couldn't update this collection. Please try again.",
     });
   });
 });

@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { OpenItemButton } from "@/components/items/OpenItemButton";
+import { FavoriteButton } from "@/components/shared/FavoriteButton";
 import { getItemTypeStyle } from "@/lib/item-types";
 import { cn } from "@/lib/utils";
 import { formatFavoriteDate } from "@/lib/favorites";
@@ -35,6 +36,17 @@ export function FavoriteItemRow({ item }: FavoriteItemRowProps) {
       >
         {formatFavoriteDate(item.updatedAt)}
       </time>
+
+      {/* Unfavoriting from here drops the row on the refresh. -my-1 keeps the
+          button from making the dense row taller. */}
+      <FavoriteButton
+        kind="item"
+        id={item.id}
+        name={item.title}
+        isFavorite={item.isFavorite}
+        size="icon-sm"
+        className="-my-1"
+      />
     </div>
   );
 }

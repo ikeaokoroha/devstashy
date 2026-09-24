@@ -14,6 +14,7 @@ import {
 import {
   createCollection as createCollectionQuery,
   deleteCollection as deleteCollectionQuery,
+  setCollectionFavorite,
   updateCollection as updateCollectionQuery,
 } from "@/lib/db/collections";
 import { requireUserId } from "@/lib/session";
@@ -99,5 +100,30 @@ export async function deleteCollection(collectionId: string): Promise<ActionResu
   } catch (error) {
     console.error("Failed to delete collection", error);
     return { success: false, error: "Couldn't delete this collection. Please try again." };
+  }
+}
+
+// Favorites or unfavorites a collection from a card's menu, the detail header or
+// a favorites row. Takes the desired state, like toggleItemFavorite.
+export async function toggleCollectionFavorite(
+  collectionId: string,
+  isFavorite: boolean
+): Promise<ActionResult> {
+  const userId = await requireUserId();
+
+  const parsedId = collectionIdSchema.safeParse(collectionId);
+  if (!parsedId.success) {
+    return { success: false, error: NOT_FOUND };
+  }
+
+  try {
+    const updated = await setCollectionFavorite(userId, parsedId.data, isFavorite);
+    if (!updated) {
+      return { success: false, error: NOT_FOUND };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to update collection favorite", error);
+    return { success: false, error: "Couldn't update this collection. Please try again." };
   }
 }

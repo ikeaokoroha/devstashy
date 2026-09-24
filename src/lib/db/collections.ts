@@ -251,6 +251,22 @@ export async function updateCollection(
   return count > 0;
 }
 
+// Sets a collection's favorite flag to an explicit value rather than flipping it,
+// so two clicks in flight can't settle on the wrong one. updateMany for the same
+// reason as updateCollection.
+export async function setCollectionFavorite(
+  userId: string,
+  collectionId: string,
+  isFavorite: boolean
+): Promise<boolean> {
+  const { count } = await prisma.collection.updateMany({
+    where: { id: collectionId, userId },
+    data: { isFavorite },
+  });
+
+  return count > 0;
+}
+
 // Deletes one collection the user owns. The items themselves are untouched: only
 // the ItemCollection join rows go, cascading from the collection.
 export async function deleteCollection(

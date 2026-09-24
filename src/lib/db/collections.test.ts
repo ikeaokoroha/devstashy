@@ -9,6 +9,7 @@ import {
   getFavoriteCollections,
   getPickerCollections,
   getSearchCollections,
+  setCollectionFavorite,
   updateCollection,
 } from "@/lib/db/collections";
 import { COLLECTIONS_PER_PAGE, FAVORITES_LIMIT } from "@/lib/pagination";
@@ -220,6 +221,37 @@ describe("updateCollection", () => {
     expect(
       await updateCollection("user-1", "someone-elses", { name: "Mine now", description: null })
     ).toBe(false);
+  });
+});
+
+describe("setCollectionFavorite", () => {
+  it("writes the value it was given, scoped to the user", async () => {
+    vi.mocked(prisma.collection.updateMany).mockResolvedValue({ count: 1 } as never);
+
+    expect(await setCollectionFavorite("user-1", "col-1", true)).toBe(true);
+    expect(prisma.collection.updateMany).toHaveBeenCalledWith({
+      where: { id: "col-1", userId: "user-1" },
+      data: { isFavorite: true },
+    });
+  });
+
+  // Unfavoriting writes false rather than flipping whatever the row holds, so two
+  // clicks in flight can't settle on the wrong value.
+  it("writes false when unfavoriting", async () => {
+    vi.mocked(prisma.collection.updateMany).mockResolvedValue({ count: 1 } as never);
+
+    await setCollectionFavorite("user-1", "col-1", false);
+
+    expect(prisma.collection.updateMany).toHaveBeenCalledWith({
+      where: { id: "col-1", userId: "user-1" },
+      data: { isFavorite: false },
+    });
+  });
+
+  it("reports nothing updated for another user's collection", async () => {
+    vi.mocked(prisma.collection.updateMany).mockResolvedValue({ count: 0 } as never);
+
+    expect(await setCollectionFavorite("user-1", "someone-elses", true)).toBe(false);
   });
 });
 

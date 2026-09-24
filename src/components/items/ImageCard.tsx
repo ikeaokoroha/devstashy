@@ -1,10 +1,11 @@
 import Image from "next/image";
-import { ImageIcon, Pin, Star } from "lucide-react";
+import { ImageIcon, Pin } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { CopyItemButton } from "@/components/items/CopyItemButton";
 import { OpenItemButton } from "@/components/items/OpenItemButton";
+import { FavoriteButton } from "@/components/shared/FavoriteButton";
 import { getCardCopyText } from "@/lib/item-detail";
 import { getItemTypeStyle } from "@/lib/item-types";
 import type { ItemWithType } from "@/types/dashboard";
@@ -67,20 +68,22 @@ export function ImageCard({ item, priority = false }: ImageCardProps) {
         {item.isPinned && (
           <Pin aria-label="Pinned" className="size-3.5 shrink-0 text-muted-foreground" />
         )}
-        {item.isFavorite && (
-          <Star
-            aria-label="Favorite"
-            className="size-3.5 shrink-0 fill-yellow-400 text-yellow-400"
-          />
-        )}
         <time
           dateTime={item.updatedAt.toISOString()}
           className="shrink-0 text-xs text-muted-foreground"
         >
           {DATE_FORMATTER.format(item.updatedAt)}
         </time>
+        {/* -my-1 keeps the buttons from making the footer row taller. */}
+        <FavoriteButton
+          kind="item"
+          id={item.id}
+          name={item.title}
+          isFavorite={item.isFavorite}
+          size="icon-sm"
+          className={cn("-my-1", !copyText && "-mr-1.5")}
+        />
         {copyText && (
-          // -my-1 keeps the button from making the footer row taller.
           <CopyItemButton
             title={item.title}
             text={copyText}

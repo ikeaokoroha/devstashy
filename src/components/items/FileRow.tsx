@@ -1,8 +1,9 @@
-import { Download, Pin, Star } from "lucide-react";
+import { Download, Pin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CopyItemButton } from "@/components/items/CopyItemButton";
 import { OpenItemButton } from "@/components/items/OpenItemButton";
+import { FavoriteButton } from "@/components/shared/FavoriteButton";
 import { getFileIcon } from "@/lib/file-icons";
 import { formatFileSize, getCardCopyText } from "@/lib/item-detail";
 import type { ItemWithType } from "@/types/dashboard";
@@ -42,12 +43,6 @@ export function FileRow({ item }: FileRowProps) {
             {item.isPinned && (
               <Pin aria-label="Pinned" className="size-4 shrink-0 text-muted-foreground" />
             )}
-            {item.isFavorite && (
-              <Star
-                aria-label="Favorite"
-                className="size-4 shrink-0 fill-yellow-400 text-yellow-400"
-              />
-            )}
           </div>
           {fileName && (
             <p className="truncate text-sm text-muted-foreground">{fileName}</p>
@@ -69,6 +64,12 @@ export function FileRow({ item }: FileRowProps) {
 
       {/* Above the row's overlay button, which would otherwise swallow the click. */}
       <div className="flex shrink-0 items-center gap-1">
+        <FavoriteButton
+          kind="item"
+          id={item.id}
+          name={item.title}
+          isFavorite={item.isFavorite}
+        />
         {copyText && <CopyItemButton title={item.title} text={copyText} />}
         {item.fileUrl && (
           <Button
