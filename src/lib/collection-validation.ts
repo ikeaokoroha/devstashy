@@ -16,3 +16,11 @@ export const createCollectionSchema = z.object({
 export type CreateCollectionInput = z.input<typeof createCollectionSchema>;
 export type CreateCollectionData = z.output<typeof createCollectionSchema>;
 export type CreateCollectionField = keyof CreateCollectionInput;
+
+// The edit dialog saves the same metadata the create dialog writes, so the rules
+// are the same; the id travels as its own argument, as it does for items.
+export const updateCollectionSchema = createCollectionSchema;
+
+export type UpdateCollectionInput = z.input<typeof updateCollectionSchema>;
+export type UpdateCollectionData = z.output<typeof updateCollectionSchema>;
+export type UpdateCollectionField = keyof UpdateCollectionInput;

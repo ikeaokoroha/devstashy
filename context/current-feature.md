@@ -1,18 +1,57 @@
-# Current Feature
+# Current Feature: Collection Actions (Edit, Delete, Favorite)
 
-<!-- Feature name and short description -->
+Edit, delete and favorite actions for collections — as buttons on the collection
+detail page and as a three-dot dropdown on the collection cards.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- **Detail page actions** — `/collections/[id]` gets edit, delete and favorite
+  buttons in its header.
+  - **Edit** opens a modal for the collection's metadata (name, description),
+    prefilled with the current values.
+  - **Delete** asks for confirmation before deleting.
+  - **Favorite** is the icon/button only — no behaviour yet.
+- **Card dropdown** — the collection cards on `/collections` and the dashboard get
+  a three-dot icon that opens a dropdown with Edit, Delete and Favorite.
+  - The same edit modal, delete confirmation and inert favorite as the detail page.
+  - Clicking anywhere else on the card still navigates to the collection page.
+- **Deleting a collection must not delete its items** — the items only stop
+  belonging to that collection.
+- Unit tests for the new server actions, queries and validation, and a passing
+  `npm run test:run`, `npx tsc --noEmit`, `npm run lint` and `npm run build`.
 
 ## Notes
 
-<!-- Any extra notes -->
+- Favorite is display only this round: render the star icon/menu entry, but wire up
+  no action. Ship the working toggle in a later feature.
+- The delete must leave items alone. `ItemCollection` rows cascade from
+  `Collection`, so deleting the collection row removes only the join rows and the
+  `Item` rows are untouched — worth asserting in a test so a future schema change
+  can't turn this into a data loss bug.
+- `CollectionCard` is currently a `<Link>` wrapping the whole card, so a dropdown
+  trigger can't just be dropped inside it (a button nested in an anchor is invalid
+  and the click would navigate). Restructure it the way the item cards already
+  solve this: the card stays a server component with an absolutely positioned
+  overlay link, and the dropdown sits above it with `relative z-10`. That is the
+  same fix the image gallery found and the file list reused.
+- The edit modal and delete confirmation are used from two places (the detail page
+  and the card dropdown), so build them as shared client components under
+  `src/components/collections/` rather than inlining either one.
+- Follow the existing item patterns throughout: `NewCollectionDialog` for the edit
+  modal's shape (child form unmounting on close, disabled submit while saving,
+  no dismiss mid-save), `DeleteItemDialog` for the confirmation, and the
+  `updateItem`/`deleteItem` actions and queries for `updateCollection` /
+  `deleteCollection` — `requireUserId`, ownership scoped in the query itself
+  (`findFirst` / `deleteMany` on id + userId), `{ success, data, error }`,
+  `fieldErrorResult` for field errors, sonner toast plus `router.refresh()`.
+- `updateCollectionSchema` goes in the existing `src/lib/collection-validation.ts`
+  next to `createCollectionSchema`.
+- Deleting from the detail page has nowhere to stay — redirect to `/collections`
+  afterwards. Deleting from a card just refreshes.
 
 ## History
 

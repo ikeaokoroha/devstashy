@@ -1,5 +1,8 @@
 import type { Prisma } from "@/generated/prisma/client";
-import type { CreateCollectionData } from "@/lib/collection-validation";
+import type {
+  CreateCollectionData,
+  UpdateCollectionData,
+} from "@/lib/collection-validation";
 import { prisma } from "@/lib/prisma";
 import type {
   CollectionDetail,
@@ -169,6 +172,35 @@ export async function createCollection(
   });
 
   return collection.id;
+}
+
+// Saves the edit dialog's metadata. updateMany rather than update, since there's
+// no unique (id, userId): the ownership check and the write are one statement,
+// so another user's id updates nothing.
+export async function updateCollection(
+  userId: string,
+  collectionId: string,
+  data: UpdateCollectionData
+): Promise<boolean> {
+  const { count } = await prisma.collection.updateMany({
+    where: { id: collectionId, userId },
+    data: { name: data.name, description: data.description },
+  });
+
+  return count > 0;
+}
+
+// Deletes one collection the user owns. The items themselves are untouched: only
+// the ItemCollection join rows go, cascading from the collection.
+export async function deleteCollection(
+  userId: string,
+  collectionId: string
+): Promise<boolean> {
+  const { count } = await prisma.collection.deleteMany({
+    where: { id: collectionId, userId },
+  });
+
+  return count > 0;
 }
 
 function toCollectionSummary({

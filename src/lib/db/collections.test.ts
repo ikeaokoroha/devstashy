@@ -2,15 +2,26 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createCollection,
+  deleteCollection,
   filterOwnedCollectionIds,
   getAllCollections,
   getCollectionDetail,
   getPickerCollections,
+  updateCollection,
 } from "@/lib/db/collections";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { collection: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn() } },
+  prisma: {
+    collection: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      updateMany: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    item: { deleteMany: vi.fn() },
+  },
 }));
 
 describe("getPickerCollections", () => {
@@ -158,5 +169,57 @@ describe("createCollection", () => {
         data: expect.objectContaining({ description: null }),
       })
     );
+  });
+});
+
+describe("updateCollection", () => {
+  it("writes the metadata scoped to the user in one statement", async () => {
+    vi.mocked(prisma.collection.updateMany).mockResolvedValue({ count: 1 } as never);
+
+    const updated = await updateCollection("user-1", "col-1", {
+      name: "React Patterns",
+      description: "Hooks and components",
+    });
+
+    expect(updated).toBe(true);
+    expect(prisma.collection.updateMany).toHaveBeenCalledWith({
+      where: { id: "col-1", userId: "user-1" },
+      data: { name: "React Patterns", description: "Hooks and components" },
+    });
+  });
+
+  it("reports nothing updated for another user's collection", async () => {
+    vi.mocked(prisma.collection.updateMany).mockResolvedValue({ count: 0 } as never);
+
+    expect(
+      await updateCollection("user-1", "someone-elses", { name: "Mine now", description: null })
+    ).toBe(false);
+  });
+});
+
+describe("deleteCollection", () => {
+  it("deletes only the user's own collection", async () => {
+    vi.mocked(prisma.collection.deleteMany).mockResolvedValue({ count: 1 } as never);
+
+    expect(await deleteCollection("user-1", "col-1")).toBe(true);
+    expect(prisma.collection.deleteMany).toHaveBeenCalledWith({
+      where: { id: "col-1", userId: "user-1" },
+    });
+  });
+
+  it("reports nothing deleted for another user's collection", async () => {
+    vi.mocked(prisma.collection.deleteMany).mockResolvedValue({ count: 0 } as never);
+
+    expect(await deleteCollection("user-1", "someone-elses")).toBe(false);
+  });
+
+  // The join rows cascade from Collection, so the items themselves must never be
+  // touched. If a future change reaches for item.deleteMany, this fails.
+  it("never deletes items", async () => {
+    vi.mocked(prisma.collection.deleteMany).mockResolvedValue({ count: 1 } as never);
+
+    await deleteCollection("user-1", "col-1");
+
+    expect(prisma.item.deleteMany).not.toHaveBeenCalled();
   });
 });
