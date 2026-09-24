@@ -1,10 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createItem, deleteItem, toggleItemFavorite, updateItem } from "@/actions/items";
+import {
+  createItem,
+  deleteItem,
+  toggleItemFavorite,
+  toggleItemPin,
+  updateItem,
+} from "@/actions/items";
 import {
   createItem as createItemQuery,
   deleteItem as deleteItemQuery,
   setItemFavorite,
+  setItemPinned,
   updateItem as updateItemQuery,
 } from "@/lib/db/items";
 import { deleteObject } from "@/lib/r2";
@@ -25,6 +32,7 @@ vi.mock("@/lib/db/items", () => ({
   updateItem: vi.fn(),
   deleteItem: vi.fn(),
   setItemFavorite: vi.fn(),
+  setItemPinned: vi.fn(),
 }));
 
 const input = {
@@ -320,5 +328,59 @@ describe("toggleItemFavorite", () => {
       success: false,
       error: "Couldn't update this item. Please try again.",
     });
+  });
+});
+
+describe("toggleItemPin", () => {
+  it("rejects an empty id without touching the database", async () => {
+    const result = await toggleItemPin("", true);
+
+    expect(result).toEqual({ success: false, error: "Item not found." });
+    expect(setItemPinned).not.toHaveBeenCalled();
+  });
+
+  // The action passes the state the UI is already showing straight through, so
+  // the database never has to read the row to flip it.
+  it("saves the requested state for the signed-in user", async () => {
+    vi.mocked(setItemPinned).mockResolvedValue(true);
+
+    expect(await toggleItemPin("item-1", true)).toEqual({ success: true });
+    expect(setItemPinned).toHaveBeenCalledWith("user-1", "item-1", true);
+  });
+
+  it("passes false through when unpinning", async () => {
+    vi.mocked(setItemPinned).mockResolvedValue(true);
+
+    await toggleItemPin("item-1", false);
+
+    expect(setItemPinned).toHaveBeenCalledWith("user-1", "item-1", false);
+  });
+
+  it("reports not found when the item isn't the user's", async () => {
+    vi.mocked(setItemPinned).mockResolvedValue(false);
+
+    expect(await toggleItemPin("someone-elses-item", true)).toEqual({
+      success: false,
+      error: "Item not found.",
+    });
+  });
+
+  it("returns a friendly error when the database fails", async () => {
+    vi.mocked(setItemPinned).mockRejectedValue(new Error("connection lost"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await toggleItemPin("item-1", true)).toEqual({
+      success: false,
+      error: "Couldn't update this item. Please try again.",
+    });
+  });
+
+  // Pinning must not reach the favorite query, which writes a different column.
+  it("never touches the favorite flag", async () => {
+    vi.mocked(setItemPinned).mockResolvedValue(true);
+
+    await toggleItemPin("item-1", true);
+
+    expect(setItemFavorite).not.toHaveBeenCalled();
   });
 });

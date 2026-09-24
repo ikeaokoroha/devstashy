@@ -6,48 +6,52 @@ import { toast } from "sonner";
 
 import type { ActionResult } from "@/types/actions";
 
-interface UseFavoriteToggleOptions {
+interface UseToggleFlagOptions {
   // The value the server rendered. Adopted again whenever it changes, so a
-  // refresh started by another surface doesn't leave a stale star behind.
-  isFavorite: boolean;
+  // refresh started by another surface doesn't leave a stale control behind.
+  value: boolean;
   // The action to run, given the state the UI has already flipped to.
-  save: (isFavorite: boolean) => Promise<ActionResult>;
+  save: (value: boolean) => Promise<ActionResult>;
   errorMessage: string;
+  // Only where the control itself doesn't say what happened: the favorite star
+  // fills in place and needs no toast, while the drawer's Pin button reads the
+  // same either way.
+  successMessage?: (value: boolean) => string;
 }
 
-interface UseFavoriteToggle {
-  isFavorite: boolean;
+interface UseToggleFlag {
+  value: boolean;
   toggle: () => void;
 }
 
-// The shared toggle behind every favorite star: the flip shows immediately, is
-// rolled back with a toast if the save fails, and a success refreshes the route
-// so the sidebar's favorites group, the favorite counts and /favorites follow.
-// There is no success toast — the star is its own confirmation, and one per click
-// would be noise.
-export function useFavoriteToggle({
-  isFavorite,
+// The shared toggle behind the favorite star and the pin button: the flip shows
+// immediately, is rolled back with a toast if the save fails, and a success
+// refreshes the route so the sidebar, the counts and the pinned and favorites
+// listings follow.
+export function useToggleFlag({
+  value: serverValue,
   save,
   errorMessage,
-}: UseFavoriteToggleOptions): UseFavoriteToggle {
+  successMessage,
+}: UseToggleFlagOptions): UseToggleFlag {
   const router = useRouter();
-  const [value, setValue] = useState(isFavorite);
+  const [value, setValue] = useState(serverValue);
   // Only the newest click may report or roll back: an earlier save that resolves
   // late would otherwise revert a click the user has since made again.
   const requestRef = useRef(0);
   // The save and the refresh it ends with run as one transition, so the route's
   // re-render doesn't interrupt the flip the user just saw. The button stays
-  // clickable throughout: the star is already showing the new state, and the
+  // clickable throughout: the control is already showing the new state, and the
   // request count settles a burst of clicks.
   const [, startSaving] = useTransition();
 
   // Another surface showing the same row (the drawer over its card) refreshes the
   // route when it saves, so a changed server value is the truth and replaces the
   // local one.
-  const [serverValue, setServerValue] = useState(isFavorite);
-  if (serverValue !== isFavorite) {
-    setServerValue(isFavorite);
-    setValue(isFavorite);
+  const [lastServerValue, setLastServerValue] = useState(serverValue);
+  if (lastServerValue !== serverValue) {
+    setLastServerValue(serverValue);
+    setValue(serverValue);
   }
 
   function toggle() {
@@ -70,13 +74,16 @@ export function useFavoriteToggle({
           toast.error(result.error ?? errorMessage);
           return;
         }
+        if (successMessage) {
+          toast.success(successMessage(next));
+        }
         router.refresh();
       } catch (error) {
         // The action itself reports a failed write through its result, so
         // reaching here means the call never got that far — a dropped request or
         // a stale action reference. Logged rather than swallowed, since the toast
         // can't say which.
-        console.error("Failed to toggle favorite", error);
+        console.error("Failed to toggle", error);
         if (requestId === requestRef.current) {
           setValue(previous);
           toast.error(errorMessage);
@@ -85,5 +92,5 @@ export function useFavoriteToggle({
     });
   }
 
-  return { isFavorite: value, toggle };
+  return { value, toggle };
 }

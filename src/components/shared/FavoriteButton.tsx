@@ -5,7 +5,7 @@ import { Star } from "lucide-react";
 import { toggleCollectionFavorite } from "@/actions/collections";
 import { toggleItemFavorite } from "@/actions/items";
 import { Button } from "@/components/ui/button";
-import { useFavoriteToggle } from "@/hooks/use-favorite-toggle";
+import { useToggleFlag } from "@/hooks/use-toggle-flag";
 import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/types/actions";
 
@@ -49,8 +49,10 @@ export function FavoriteButton({
   size = "icon",
   className,
 }: FavoriteButtonProps) {
-  const { isFavorite, toggle } = useFavoriteToggle({
-    isFavorite: serverValue,
+  // No success toast: the star fills in place, and one toast per click would be
+  // noise across a grid of cards.
+  const { value: isFavorite, toggle } = useToggleFlag({
+    value: serverValue,
     save: (next) => SAVE_ACTIONS[kind](id, next),
     errorMessage: ERROR_MESSAGES[kind],
   });

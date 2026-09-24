@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useFavoriteToggle } from "@/hooks/use-favorite-toggle";
+import { useToggleFlag } from "@/hooks/use-toggle-flag";
 import { cn } from "@/lib/utils";
 import { DeleteCollectionDialog } from "./DeleteCollectionDialog";
 import { EditCollectionDialog, type EditableCollection } from "./EditCollectionDialog";
@@ -33,8 +33,8 @@ export function CollectionCardMenu({ collection, isFavorite }: CollectionCardMen
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   // The hook lives here rather than in a FavoriteButton, since the menu entry is
   // a DropdownMenuItem and not a button of its own.
-  const favorite = useFavoriteToggle({
-    isFavorite,
+  const favorite = useToggleFlag({
+    value: isFavorite,
     save: (next) => toggleCollectionFavorite(collection.id, next),
     errorMessage: "Couldn't update this collection. Please try again.",
   });
@@ -59,11 +59,11 @@ export function CollectionCardMenu({ collection, isFavorite }: CollectionCardMen
             <Pencil />
             Edit
           </DropdownMenuItem>
-          <DropdownMenuItem aria-pressed={favorite.isFavorite} onClick={favorite.toggle}>
+          <DropdownMenuItem aria-pressed={favorite.value} onClick={favorite.toggle}>
             <Star
-              className={cn(favorite.isFavorite && "fill-yellow-400 text-yellow-400")}
+              className={cn(favorite.value && "fill-yellow-400 text-yellow-400")}
             />
-            {favorite.isFavorite ? "Unfavorite" : "Favorite"}
+            {favorite.value ? "Unfavorite" : "Favorite"}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

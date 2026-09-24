@@ -1,11 +1,11 @@
 "use client";
 
-import { Check, Copy, Download, Pencil, Pin } from "lucide-react";
+import { Check, Copy, Download, Pencil } from "lucide-react";
 
 import { FavoriteButton } from "@/components/shared/FavoriteButton";
+import { PinButton } from "@/components/shared/PinButton";
 import { Button } from "@/components/ui/button";
 import { useCopyToClipboard, type CopyStatus } from "@/hooks/use-copy-to-clipboard";
-import { cn } from "@/lib/utils";
 import { DeleteItemDialog } from "./DeleteItemDialog";
 
 const COPY_LABELS: Record<CopyStatus, string> = {
@@ -28,7 +28,7 @@ interface ItemDrawerActionsProps {
   onDeleted: () => void;
 }
 
-// Favorite, Copy, Download, Edit and Delete work; Pin is display only for now.
+// Every action works: Favorite, Pin, Copy, Download, Edit and Delete.
 export function ItemDrawerActions({
   itemId,
   title,
@@ -48,10 +48,7 @@ export function ItemDrawerActions({
   return (
     <div className="flex items-center gap-1">
       <FavoriteButton kind="item" id={itemId} name={title} isFavorite={isFavorite} showLabel />
-      <Button variant="ghost" size="sm" aria-pressed={isPinned}>
-        <Pin className={cn(isPinned && "fill-current")} />
-        Pin
-      </Button>
+      <PinButton itemId={itemId} isPinned={isPinned} />
       <Button variant="ghost" size="sm" disabled={!copyText} onClick={handleCopy}>
         {copyStatus === "copied" ? <Check /> : <Copy />}
         {COPY_LABELS[copyStatus]}
