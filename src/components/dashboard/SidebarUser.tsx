@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronsUpDown, LogOut, User } from "lucide-react";
+import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
 import { signOutUser } from "@/actions/auth";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import {
@@ -36,6 +36,10 @@ export function SidebarUser({ user }: SidebarUserProps) {
           <DropdownMenuItem render={<Link href="/profile" />}>
             <User />
             Profile
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/settings" />}>
+            <Settings />
+            Settings
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => signOutUser()}>

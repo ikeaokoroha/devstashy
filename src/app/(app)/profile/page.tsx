@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { AccountActions } from "@/components/profile/AccountActions";
 import { ItemTypeBreakdown } from "@/components/profile/ItemTypeBreakdown";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { StatsCards } from "@/components/dashboard/StatsCards";
@@ -36,7 +35,6 @@ export default async function ProfilePage() {
       <ProfileHeader user={user} />
       <StatsCards stats={{ ...itemStats, ...collectionStats }} />
       <ItemTypeBreakdown itemTypes={itemTypes} />
-      <AccountActions hasPassword={user.hasPassword} />
     </div>
   );
 }
