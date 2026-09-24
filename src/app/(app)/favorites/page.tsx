@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Star } from "lucide-react";
 
-import { FavoriteCollectionRow } from "@/components/favorites/FavoriteCollectionRow";
-import { FavoriteItemRow } from "@/components/favorites/FavoriteItemRow";
-import { FavoritesSection } from "@/components/favorites/FavoritesSection";
+import { FavoritesList } from "@/components/favorites/FavoritesList";
 import { getFavoriteCollections } from "@/lib/db/collections";
 import { getFavoriteItems } from "@/lib/db/items";
 import { FAVORITES_LIMIT } from "@/lib/pagination";
@@ -39,25 +37,9 @@ export default async function FavoritesPage() {
           Nothing favorited yet. Star an item or a collection to keep it here.
         </p>
       ) : (
-        // Each section is dropped when empty rather than showing a zero, so a
-        // page of only items doesn't carry an empty Collections heading.
-        <div className="space-y-6">
-          {items.length > 0 && (
-            <FavoritesSection title="Items" count={items.length}>
-              {items.map((item) => (
-                <FavoriteItemRow key={item.id} item={item} />
-              ))}
-            </FavoritesSection>
-          )}
-
-          {collections.length > 0 && (
-            <FavoritesSection title="Collections" count={collections.length}>
-              {collections.map((collection) => (
-                <FavoriteCollectionRow key={collection.id} collection={collection} />
-              ))}
-            </FavoritesSection>
-          )}
-        </div>
+        // The sections and their rows live in a client component so the sort
+        // control can reorder them without going back to the server.
+        <FavoritesList items={items} collections={collections} />
       )}
     </div>
   );
