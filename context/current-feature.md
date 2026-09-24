@@ -1,42 +1,18 @@
-# Current Feature: Settings Page
+# Current Feature
 
-A protected `/settings` page, linked from the sidebar user dropdown, holding the
-account actions (change password, delete account) currently on `/profile`.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Add `/settings` under the `(app)` route group, so it shares the sidebar and top bar.
-- Protect it: add `/settings/:path*` to the proxy matcher and scope the page to the
-  signed-in user with `requireUserId`, like `/profile`.
-- Add a Settings entry to the sidebar user dropdown (`SidebarUser`), between Profile
-  and Sign out, with a Lucide `Settings` icon.
-- Move the account actions off `/profile` and onto `/settings`: the `AccountActions`
-  card with `ChangePasswordDialog` (rendered only when the account has a password)
-  and `DeleteAccountDialog`.
-- Leave `/profile` with the account info, stats cards and item type breakdown only.
+<!-- Goals and requirements -->
 
 ## Notes
 
-- The spec calls it "forgot password", but the profile card holds **change password**
-  (`ChangePasswordDialog`, backed by the `changePassword` action, which verifies the
-  current password and rejects OAuth-only accounts). Forgot password is the signed-out
-  flow at `/forgot-password` and stays where it is. Moving the change-password dialog
-  is the intent here.
-- `AccountActions` needs `hasPassword`, which comes from `getProfileUser`, so the
-  settings page runs that same lookup. `/profile` still needs it for `ProfileHeader`,
-  so both pages call it — no new query.
-- Components under `src/components/profile/` that only serve settings should move to
-  `src/components/settings/` (`AccountActions`, `ChangePasswordDialog`,
-  `DeleteAccountDialog`); the actions themselves stay in `src/actions/profile.ts`.
-- `deleteAccount` signs out to `/sign-in?deleted=1`, so nothing about the redirect
-  changes with the move.
-- No schema change and no migration; nothing new to query.
-- Testing: the actions and validation are unchanged, so no new unit tests are expected
-  unless a helper is added. `src/actions/profile.test.ts` should still pass untouched.
+<!-- Any extra notes -->
 
 ## History
 
@@ -161,3 +137,6 @@ The top bar's search box, display only since Dashboard UI Phase 1, now opens a �
 
 Pagination
 The three list pages — /items/[type], /collections and /collections/[id] — now page through their contents instead of loading a user's whole library to render one screen of it, closing the unbounded-query gap carried since Items List View and Collection Pages. /collections was pulled into scope during the load step even though the spec's requirement bullet named only the other two: COLLECTIONS_PER_PAGE has no other caller, getAllCollections was the heaviest of the three (through COLLECTION_ITEM_TYPES_SELECT it loads every ItemCollection join row under every collection just to rank types for the card border), and the three pages share one component, one query shape and one param parser, so it was a fourth file rather than a second feature. src/lib/pagination.ts holds the four constants the spec named plus the logic: parsePageParam takes only a plain positive integer, so junk, a zero, a negative and the array Next hands back for a repeated param all fall back to page 1, and it caps at 1,000,000 so a URL full of digits can't reach Prisma as an unsafe skip — a page that high is out of range for any real list, so it 404s like any other too-high page rather than being silently clamped; getPageHref keeps page 1 on the bare path rather than ?page=1, so the first page has one canonical URL however you arrive at it; getPageCount returns 0 for an empty list so the controls stay hidden under an empty state; and getPageNumbers returns the first page, a window around the current one, the last page and an ellipsis wherever that skips a run, widening the window against whichever end it hits so the row holds a steady seven links instead of shrinking where one ellipsis drops out. getItemsByType and getItemsByCollection in src/lib/db/items.ts now share a private paginateItems (skip/take plus a count over the same where, in one Promise.all) and getAllCollections in collections.ts does the same with COLLECTIONS_PER_PAGE; all three return the new Paginated<T> — { rows, total } in src/types/pagination.ts — so the page headers keep showing the real total while only a page of rows crosses the wire. The existing indexes cover every one of them, so no migration. PaginationControls in src/components/shared is a server component, since it is only links: it takes the shadcn pagination primitives for the nav, list and ellipsis but composes its own links on Button plus next/link, because the generated PaginationLink hardcodes a plain anchor — paging would have reloaded the whole shell — and the repo's convention is to compose rather than edit a generated shadcn file, the same call the command palette made over CommandDialog. At either end prev and next render as a greyed, inert span rather than disappearing, so the row doesn't shift and there is no link left to focus. Each page reads page from searchParams (awaited, per Next 16), 404s when isPageOutOfRange rather than clamping — a bad page number is a bad URL, and clamping would hide the typo — and swaps items.length for total in its header count so it reads 43 items rather than 21. /items/[type] covers the ItemGrid, ImageGrid and FileList branches at once, and on /collections/[id] the Items/Images/Files sections CollectionItems partitions are now per page, so page 2 of a mixed collection can be all images and the headings come and go; paginating each group separately would have needed three counts and three params, and the single list keeps the global pinned-first ordering. The dashboard's RECENT_COLLECTIONS_LIMIT and RECENT_ITEMS_LIMIT moved to pagination.ts under the spec's names, DASHBOARD_COLLECTIONS_LIMIT and DASHBOARD_RECENT_ITEMS_LIMIT; PINNED_ITEMS_LIMIT stayed local, since the spec doesn't name it. Twenty-one tests cover the helpers — including that getPageNumbers never repeats a page, never drops the first or last, always contains the current page and stays seven links wide across a long list, checked over every page of every list length up to 30 — and four cover the queries' skip/take, their count and the scoped where; the component isn't unit tested, matching the other card and list components. The suite is at 272. Known gaps: deleting the last item on the last page from the drawer calls router.refresh() on a page that is now out of range, so it lands on the 404 rather than sliding back a page — indistinguishable server side from a typo'd URL, which is the case the 404 is for; the nested COLLECTION_ITEM_TYPES_SELECT is still unbounded per collection, so pagination caps how many collections drag their join rows across but not how many rows each one loads, leaving the groupBy fix dropped in Code Scan Quick Wins 2 open with its second caller; the ui/pagination.tsx PaginationLink, PaginationPrevious and PaginationNext are unused, left as generated; and the seed's 18 items and 5 collections are all under one page, so nothing paginates until there are more than 21. Verified with tsc, eslint, the Vitest suite and next build, with all three routes still dynamic in the build output; the browser check was left to the user.
+
+Settings Page
+Added /settings and moved the account actions there from /profile, so the profile page is about the account and what's in it while settings is where you change or end it. The page sits in the (app) route group like /profile, so it keeps the sidebar and top bar, and is protected the same two ways: /settings/:path* joined the proxy matcher (the :path* matches zero segments, so the bare /settings is covered, which is how /profile has always worked) and the page itself scopes to the signed-in user through requireUserId, with the same notFound() on a missing row that /profile carries for a JWT from a deleted account. AccountActions, ChangePasswordDialog and DeleteAccountDialog moved from src/components/profile to a new src/components/settings with git mv, so their history follows and only AccountActions changed — its two imports. The dialogs, changePassword and deleteAccount in src/actions/profile.ts, and DELETE_CONFIRMATION in src/lib/profile.ts are all untouched, so deleteAccount still signs out to /sign-in?deleted=1 and the actions keep their existing tests. The settings page reuses getProfileUser for the single hasPassword flag it needs, which pulls image, createdAt and the linked accounts it doesn't use; a lighter query was considered and dropped as a new function to test for one boolean, and /profile still runs the same lookup for ProfileHeader, so no query was added. The sidebar user dropdown (SidebarUser) gained a Settings entry with Lucide's Settings icon between Profile and the separator above Sign out. The spec asked for "forgot password" to move, but the card holds change password — the signed-in dialog that verifies the current password and rejects OAuth-only accounts — while forgot password is the signed-out flow at /forgot-password, which stays where it is; the change-password dialog is what moved. No schema change, no migration and no new actions or utilities, so the suite is unchanged at 272 and no tests were added, matching the convention that components aren't unit tested. Known gaps: /settings holds only the account card, so there are no real settings yet (a theme toggle, the light mode the spec lists as optional, or export would live here); the settings query loads more of the user row than it reads; and the sidebar dropdown entry isn't marked active on the page it points at, the same as Profile.
