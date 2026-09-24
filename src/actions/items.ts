@@ -7,6 +7,7 @@ import {
   createItem as createItemQuery,
   deleteItem as deleteItemQuery,
   setItemFavorite,
+  setItemPinned,
   updateItem as updateItemQuery,
 } from "@/lib/db/items";
 import {
@@ -156,6 +157,31 @@ export async function toggleItemFavorite(
     return { success: true };
   } catch (error) {
     console.error("Failed to update item favorite", error);
+    return { success: false, error: "Couldn't update this item. Please try again." };
+  }
+}
+
+// Pins or unpins an item from the drawer. Like the favorite toggle, the caller
+// passes the state it wants rather than asking for a flip.
+export async function toggleItemPin(
+  itemId: string,
+  isPinned: boolean
+): Promise<ActionResult> {
+  const userId = await requireUserId();
+
+  const parsedId = itemIdSchema.safeParse(itemId);
+  if (!parsedId.success) {
+    return { success: false, error: "Item not found." };
+  }
+
+  try {
+    const updated = await setItemPinned(userId, parsedId.data, isPinned);
+    if (!updated) {
+      return { success: false, error: "Item not found." };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to update item pin", error);
     return { success: false, error: "Couldn't update this item. Please try again." };
   }
 }

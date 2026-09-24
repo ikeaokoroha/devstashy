@@ -10,6 +10,7 @@ import {
   getItemsByType,
   getSearchItems,
   setItemFavorite,
+  setItemPinned,
   updateItem,
 } from "@/lib/db/items";
 import { FAVORITES_LIMIT, ITEMS_PER_PAGE } from "@/lib/pagination";
@@ -515,6 +516,47 @@ describe("setItemFavorite", () => {
     vi.mocked(prisma.item.updateMany).mockResolvedValue({ count: 0 });
 
     expect(await setItemFavorite("user-1", "someone-elses-item", true)).toBe(false);
+  });
+});
+
+describe("setItemPinned", () => {
+  it("writes the value it was given, scoped to the user", async () => {
+    vi.mocked(prisma.item.updateMany).mockResolvedValue({ count: 1 });
+
+    expect(await setItemPinned("user-1", "item-1", true)).toBe(true);
+    expect(prisma.item.updateMany).toHaveBeenCalledWith({
+      where: { id: "item-1", userId: "user-1" },
+      data: { isPinned: true },
+    });
+  });
+
+  // Unpinning writes false rather than flipping whatever the row holds, so two
+  // clicks in flight can't settle on the wrong value.
+  it("writes false when unpinning", async () => {
+    vi.mocked(prisma.item.updateMany).mockResolvedValue({ count: 1 });
+
+    await setItemPinned("user-1", "item-1", false);
+
+    expect(prisma.item.updateMany).toHaveBeenCalledWith({
+      where: { id: "item-1", userId: "user-1" },
+      data: { isPinned: false },
+    });
+  });
+
+  it("reports nothing updated for another user's item", async () => {
+    vi.mocked(prisma.item.updateMany).mockResolvedValue({ count: 0 });
+
+    expect(await setItemPinned("user-1", "someone-elses-item", true)).toBe(false);
+  });
+
+  // The favorite flag is written by its own query; a pin must not disturb it.
+  it("touches only the pin flag", async () => {
+    vi.mocked(prisma.item.updateMany).mockResolvedValue({ count: 1 });
+
+    await setItemPinned("user-1", "item-1", true);
+
+    const [{ data }] = vi.mocked(prisma.item.updateMany).mock.calls[0];
+    expect(Object.keys(data)).toEqual(["isPinned"]);
   });
 });
 

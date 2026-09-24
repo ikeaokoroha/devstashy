@@ -414,6 +414,21 @@ export async function setItemFavorite(
   return count > 0;
 }
 
+// Pins or unpins an item, scoped and explicit for the same reasons as
+// setItemFavorite above.
+export async function setItemPinned(
+  userId: string,
+  itemId: string,
+  isPinned: boolean
+): Promise<boolean> {
+  const { count } = await prisma.item.updateMany({
+    where: { id: itemId, userId },
+    data: { isPinned },
+  });
+
+  return count > 0;
+}
+
 export async function getRecentItems(
   userId: string,
   limit: number
