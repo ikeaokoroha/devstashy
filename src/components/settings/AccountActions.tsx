@@ -1,5 +1,5 @@
-import { ChangePasswordDialog } from "@/components/profile/ChangePasswordDialog";
-import { DeleteAccountDialog } from "@/components/profile/DeleteAccountDialog";
+import { ChangePasswordDialog } from "@/components/settings/ChangePasswordDialog";
+import { DeleteAccountDialog } from "@/components/settings/DeleteAccountDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface AccountActionsProps {

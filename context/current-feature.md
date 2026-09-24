@@ -1,18 +1,42 @@
-# Current Feature
+# Current Feature: Settings Page
 
-<!-- Feature name and short description -->
+A protected `/settings` page, linked from the sidebar user dropdown, holding the
+account actions (change password, delete account) currently on `/profile`.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Add `/settings` under the `(app)` route group, so it shares the sidebar and top bar.
+- Protect it: add `/settings/:path*` to the proxy matcher and scope the page to the
+  signed-in user with `requireUserId`, like `/profile`.
+- Add a Settings entry to the sidebar user dropdown (`SidebarUser`), between Profile
+  and Sign out, with a Lucide `Settings` icon.
+- Move the account actions off `/profile` and onto `/settings`: the `AccountActions`
+  card with `ChangePasswordDialog` (rendered only when the account has a password)
+  and `DeleteAccountDialog`.
+- Leave `/profile` with the account info, stats cards and item type breakdown only.
 
 ## Notes
 
-<!-- Any extra notes -->
+- The spec calls it "forgot password", but the profile card holds **change password**
+  (`ChangePasswordDialog`, backed by the `changePassword` action, which verifies the
+  current password and rejects OAuth-only accounts). Forgot password is the signed-out
+  flow at `/forgot-password` and stays where it is. Moving the change-password dialog
+  is the intent here.
+- `AccountActions` needs `hasPassword`, which comes from `getProfileUser`, so the
+  settings page runs that same lookup. `/profile` still needs it for `ProfileHeader`,
+  so both pages call it — no new query.
+- Components under `src/components/profile/` that only serve settings should move to
+  `src/components/settings/` (`AccountActions`, `ChangePasswordDialog`,
+  `DeleteAccountDialog`); the actions themselves stay in `src/actions/profile.ts`.
+- `deleteAccount` signs out to `/sign-in?deleted=1`, so nothing about the redirect
+  changes with the move.
+- No schema change and no migration; nothing new to query.
+- Testing: the actions and validation are unchanged, so no new unit tests are expected
+  unless a helper is added. `src/actions/profile.test.ts` should still pass untouched.
 
 ## History
 
