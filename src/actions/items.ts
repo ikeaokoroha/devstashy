@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 
+import { fieldErrorResult } from "@/lib/action-errors";
 import {
   createItem as createItemQuery,
   deleteItem as deleteItemQuery,
@@ -32,25 +33,6 @@ interface CreateItemResult {
 }
 
 const itemIdSchema = z.string().min(1);
-
-// The first message for each invalid field, for the form to show inline.
-function fieldErrorResult<Field extends string>(
-  error: z.ZodError<Record<Field, unknown>>
-): ActionResult<{ fieldErrors: Partial<Record<Field, string>> }> {
-  const { fieldErrors } = z.flattenError(error);
-  return {
-    success: false,
-    error: "Please fix the highlighted fields.",
-    data: {
-      fieldErrors: Object.fromEntries(
-        Object.entries<string[] | undefined>(fieldErrors).map(([field, messages]) => [
-          field,
-          messages?.[0],
-        ])
-      ) as Partial<Record<Field, string>>,
-    },
-  };
-}
 
 // Saves the New Item dialog for the signed-in user.
 export async function createItem(data: CreateItemInput): Promise<ActionResult<CreateItemResult>> {
