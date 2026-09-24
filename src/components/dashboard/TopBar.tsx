@@ -1,6 +1,10 @@
+import Link from "next/link";
+import { Star } from "lucide-react";
+
 import { NewCollectionDialog } from "@/components/collections/NewCollectionDialog";
 import { NewItemDialog } from "@/components/items/NewItemDialog";
 import { SearchTrigger } from "@/components/search/SearchTrigger";
+import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export function TopBar() {
@@ -13,6 +17,15 @@ export function TopBar() {
       <SearchTrigger />
 
       <div className="flex flex-1 items-center justify-end gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          title="Favorites"
+          nativeButton={false}
+          render={<Link href="/favorites" aria-label="Favorites" />}
+        >
+          <Star />
+        </Button>
         <NewCollectionDialog className="hidden sm:inline-flex" />
         <NewItemDialog />
       </div>

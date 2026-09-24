@@ -1,11 +1,13 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { ItemWithType } from "@/types/dashboard";
+import type { ItemPreview } from "@/types/dashboard";
 import { useItemDrawer } from "./ItemDrawerProvider";
 
 interface OpenItemButtonProps {
-  item: ItemWithType;
+  // A preview is all this needs, and all openItem takes, so a favorites row can
+  // reuse it without carrying a card's content and file columns.
+  item: ItemPreview;
   // For cards with positioned children, which would otherwise paint over the
   // overlay and swallow the click (see ImageCard's thumbnail).
   className?: string;

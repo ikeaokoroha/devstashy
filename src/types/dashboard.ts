@@ -81,6 +81,20 @@ export type ItemPreview = Pick<
   "id" | "title" | "isFavorite" | "isPinned" | "itemType"
 >;
 
+// One row on the favorites list. A preview is all the row renders besides the
+// date, and it's also what the drawer needs, so the query stays off the card
+// select's content, url and file columns.
+export type FavoriteItem = ItemPreview & { updatedAt: Date };
+
+// One collection row on the favorites list. No itemTypes: the rows show a
+// folder rather than a dominant-type colour, so none of the join rows are read.
+export interface FavoriteCollection {
+  id: string;
+  name: string;
+  itemCount: number;
+  updatedAt: Date;
+}
+
 export interface SidebarUserInfo {
   name?: string | null;
   email?: string | null;

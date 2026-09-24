@@ -6,11 +6,12 @@ import {
   filterOwnedCollectionIds,
   getAllCollections,
   getCollectionDetail,
+  getFavoriteCollections,
   getPickerCollections,
   getSearchCollections,
   updateCollection,
 } from "@/lib/db/collections";
-import { COLLECTIONS_PER_PAGE } from "@/lib/pagination";
+import { COLLECTIONS_PER_PAGE, FAVORITES_LIMIT } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
@@ -272,6 +273,49 @@ describe("getSearchCollections", () => {
     expect(await getSearchCollections("user-1", 200)).toEqual([
       { id: "col-1", name: "React Patterns", itemCount: 4 },
       { id: "col-2", name: "Empty", itemCount: 0 },
+    ]);
+  });
+});
+
+describe("getFavoriteCollections", () => {
+  it("reads only the user's favorites, newest first, up to the limit", async () => {
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([]);
+
+    await getFavoriteCollections("user-1", FAVORITES_LIMIT);
+
+    expect(prisma.collection.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1", isFavorite: true },
+        orderBy: { updatedAt: "desc" },
+        take: FAVORITES_LIMIT,
+      })
+    );
+  });
+
+  // The card queries nest every ItemCollection row to rank types for the border
+  // colour. A favorites row shows a folder, so it counts items instead.
+  it("counts items rather than loading their rows", async () => {
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([]);
+
+    await getFavoriteCollections("user-1", FAVORITES_LIMIT);
+
+    const [{ select }] = vi.mocked(prisma.collection.findMany).mock.calls[0] as [
+      { select: Record<string, unknown> },
+    ];
+    expect(select).not.toHaveProperty("items");
+    expect(select._count).toEqual({ select: { items: true } });
+  });
+
+  it("flattens the item count onto each row", async () => {
+    const updatedAt = new Date("2026-02-01T09:30:00Z");
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      { id: "col-1", name: "React Patterns", updatedAt, _count: { items: 4 } },
+      { id: "col-2", name: "Empty", updatedAt, _count: { items: 0 } },
+    ] as never);
+
+    expect(await getFavoriteCollections("user-1", FAVORITES_LIMIT)).toEqual([
+      { id: "col-1", name: "React Patterns", updatedAt, itemCount: 4 },
+      { id: "col-2", name: "Empty", updatedAt, itemCount: 0 },
     ]);
   });
 });

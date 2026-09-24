@@ -5,12 +5,13 @@ import {
   deleteItem,
   getItemDetail,
   getItemFile,
+  getFavoriteItems,
   getItemsByCollection,
   getItemsByType,
   getSearchItems,
   updateItem,
 } from "@/lib/db/items";
-import { ITEMS_PER_PAGE } from "@/lib/pagination";
+import { FAVORITES_LIMIT, ITEMS_PER_PAGE } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
@@ -537,5 +538,62 @@ describe("getSearchItems", () => {
     const [item] = await getSearchItems("user-1", 500);
 
     expect(item.preview).toBeNull();
+  });
+});
+
+describe("getFavoriteItems", () => {
+  it("reads only the user's favorites, newest first, up to the limit", async () => {
+    vi.mocked(prisma.item.findMany).mockResolvedValue([]);
+
+    await getFavoriteItems("user-1", FAVORITES_LIMIT);
+
+    expect(prisma.item.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1", isFavorite: true },
+        orderBy: { updatedAt: "desc" },
+        take: FAVORITES_LIMIT,
+      })
+    );
+  });
+
+  // The row only shows an icon, a title and a date, so the heavy card columns
+  // shouldn't be crossing the wire for it.
+  it("leaves the content and file columns unselected", async () => {
+    vi.mocked(prisma.item.findMany).mockResolvedValue([]);
+
+    await getFavoriteItems("user-1", FAVORITES_LIMIT);
+
+    const [{ select }] = vi.mocked(prisma.item.findMany).mock.calls[0] as [
+      { select: Record<string, unknown> },
+    ];
+    expect(select).not.toHaveProperty("content");
+    expect(select).not.toHaveProperty("url");
+    expect(select).not.toHaveProperty("fileUrl");
+    expect(select).not.toHaveProperty("tags");
+  });
+
+  it("returns the rows as the favorites list renders them", async () => {
+    const updatedAt = new Date("2026-02-01T09:30:00Z");
+    vi.mocked(prisma.item.findMany).mockResolvedValue([
+      {
+        id: "item-1",
+        title: "useAuth Hook",
+        isFavorite: true,
+        isPinned: false,
+        updatedAt,
+        itemType: { id: "type-1", name: "snippet" },
+      },
+    ] as never);
+
+    expect(await getFavoriteItems("user-1", FAVORITES_LIMIT)).toEqual([
+      {
+        id: "item-1",
+        title: "useAuth Hook",
+        isFavorite: true,
+        isPinned: false,
+        updatedAt,
+        itemType: { id: "type-1", name: "snippet" },
+      },
+    ]);
   });
 });

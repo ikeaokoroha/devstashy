@@ -10,6 +10,7 @@ import type {
   CollectionItemType,
   CollectionStats,
   CollectionSummary,
+  FavoriteCollection,
   SidebarCollection,
   SidebarCollections,
 } from "@/types/dashboard";
@@ -141,6 +142,32 @@ export async function getSidebarCollections(
     favorites: favorites.map(toSidebarCollection),
     recent: recent.map(toSidebarCollection),
   };
+}
+
+// The user's favorited collections for the favorites page, most recently
+// updated first. Capped rather than paginated, since the page shows every
+// section at once. The item rows the card queries load to rank types aren't
+// read here: a favorites row shows a folder, not a dominant-type colour.
+export async function getFavoriteCollections(
+  userId: string,
+  limit: number
+): Promise<FavoriteCollection[]> {
+  const collections = await prisma.collection.findMany({
+    where: { userId, isFavorite: true },
+    orderBy: { updatedAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      name: true,
+      updatedAt: true,
+      _count: { select: { items: true } },
+    },
+  });
+
+  return collections.map(({ _count, ...collection }) => ({
+    ...collection,
+    itemCount: _count.items,
+  }));
 }
 
 // Every collection the user can add an item to, for the item forms' picker.

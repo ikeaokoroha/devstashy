@@ -5,6 +5,11 @@ export const COLLECTIONS_PER_PAGE = 21;
 export const DASHBOARD_COLLECTIONS_LIMIT = 6;
 export const DASHBOARD_RECENT_ITEMS_LIMIT = 10;
 
+// The favorites page shows everything rather than paging, so each section is
+// capped instead. Favorites are self-curated and rarely run this long, so the
+// bound is invisible in practice and only there to keep the query bounded.
+export const FAVORITES_LIMIT = 200;
+
 // An upper bound on ?page= so a URL full of digits can't reach the query as a
 // skip Postgres has to reason about. A page this high is out of range for any
 // real list, so it 404s the way any other too-high page does.

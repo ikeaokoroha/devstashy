@@ -9,7 +9,12 @@ import {
 import { getPageSkip, ITEMS_PER_PAGE } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { toSearchPreview } from "@/lib/search";
-import type { ItemStats, ItemTypeWithCount, ItemWithType } from "@/types/dashboard";
+import type {
+  FavoriteItem,
+  ItemStats,
+  ItemTypeWithCount,
+  ItemWithType,
+} from "@/types/dashboard";
 import type { ItemDetail } from "@/types/items";
 import type { Paginated } from "@/types/pagination";
 import type { SearchItem } from "@/types/search";
@@ -128,6 +133,31 @@ async function paginateItems(
   ]);
 
   return { rows: items.map(toItemWithType), total };
+}
+
+// Just what a favorites row renders: the type for its icon, the title, and the
+// date. None of the card select's heavy columns are read.
+const FAVORITE_ITEM_SELECT = {
+  id: true,
+  title: true,
+  isFavorite: true,
+  isPinned: true,
+  updatedAt: true,
+  itemType: { select: { id: true, name: true } },
+} satisfies Prisma.ItemSelect;
+
+// The user's favorited items for the favorites page, most recently updated
+// first. Capped rather than paginated, since the page shows every section at once.
+export async function getFavoriteItems(
+  userId: string,
+  limit: number
+): Promise<FavoriteItem[]> {
+  return prisma.item.findMany({
+    where: { userId, isFavorite: true },
+    orderBy: { updatedAt: "desc" },
+    take: limit,
+    select: FAVORITE_ITEM_SELECT,
+  });
 }
 
 // Just what a command palette row renders and searches. The content is the one
