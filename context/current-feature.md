@@ -1,50 +1,18 @@
-# Current Feature: Collection Create
+# Current Feature
 
-Make the top bar's "New Collection" button work: open a modal that creates a
-user-scoped collection with a name and description, following the same patterns
-as item create.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Turn the display-only "New Collection" button in `src/components/dashboard/TopBar.tsx`
-  into a client island that opens a shadcn Dialog, mirroring `NewItemDialog`.
-- Modal fields: name (required) and description (optional). Keep the dialog
-  uncloseable mid-save, disable Create while the name is blank or a save is
-  running, and start blank on each open (form child unmounts on close).
-- Add `createCollectionSchema` to a new `src/lib/collection-validation.ts`,
-  matching `item-validation.ts`: name trimmed and required, blank description
-  stored as null.
-- Add a `createCollection` query to `src/lib/db/collections.ts` (connects the
-  collection to the user, returns the new collection) and a `createCollection`
-  server action in a new `src/actions/collections.ts` following
-  `src/actions/items.ts`: `requireUserId`, `{ success, data, error }`, field
-  errors through the shared `fieldErrorResult` helper, generic error in
-  try/catch.
-- Every collection read stays user-scoped through `lib/db` functions called from
-  server components; any client-side fetch goes through an API route the way
-  `GET /api/items/[id]` does.
-- Show a sonner toast on success ("Collection created") and on failure.
-- Refresh the UI on save so the new collection appears in the sidebar's
-  Collections group and the dashboard's recent collections
-  (`router.refresh()`, as item create does).
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Patterns to mirror: `src/components/items/NewItemDialog.tsx`,
-  `src/actions/items.ts`, `src/lib/item-validation.ts`, `src/lib/db/items.ts`.
-- The `Collection` model already exists (name, description, isFavorite,
-  defaultTypeId, userId, timestamps), so no migration should be needed.
-- Only create is in scope — no collection edit, delete, favorite toggle,
-  `/collections` list page, or adding items to a collection.
-- `defaultTypeId` is left alone; it is still flagged undecided in the project
-  overview.
-- Tests: unit test the new schema, query and action (validation failure, happy
-  path, database error) per the Testing section of coding-standards.md; the
-  dialog component is not unit tested, matching the item components.
+<!-- Any extra notes -->
 
 ## History
 
@@ -151,3 +119,6 @@ Every item card now has a copy icon that puts the item's content on the clipboar
 
 Code Scan Quick Wins 2
 Three low-risk fixes from the second code-scanner audit, with no schema change, no migration and nothing user-visible. createItem only checked that a client-supplied fileUrl resolved into our own bucket, not that the object belonged to the caller; since the bucket is public and the key is the only secret, a signed-in user holding another user's file URL could attach it to an item and then permanently delete that object from R2 by deleting their own item, which goes past the accepted public-bucket gap (that covers reading a URL you already hold, not destroying someone else's file). Keys are minted as {userId}/{uuid}.{ext} by buildObjectKey, so the owner was already in the key and simply not read. getOwnedObjectKeyFromUrl in src/lib/r2.ts now wraps getObjectKeyFromUrl with the `${userId}/` prefix check and lives next to buildObjectKey so the layout convention stays in one place rather than being inlined at each call site; createItem uses it, so a foreign key fails the existing "Upload a file" field error, and deleteItem uses it too, so a row written before this fix keeps the item delete but leaves the object alone. getObjectKeyFromUrl also ended with a bare decodeURIComponent, which throws URIError on a malformed escape like %zz — a string that passes both new URL() and the zod z.url({ protocol: /^https?$/ }) check — and in createItem that call sits above the try block, so a crafted fileUrl produced an unhandled server-action rejection instead of a field error; it now returns null, which both callers already handled. Third, shadcn moved to devDependencies: it is a scaffolding CLI run through npx and nothing in src/ imports it (the runtime cn helper comes from the separate cn package), so it was being installed on every production and CI install for no runtime benefit. The @/lib/r2 mock in src/actions/items.test.ts had to follow the renamed export and was made to mirror the real prefix logic rather than stub it out; new tests cover the malformed escape, an owned key, another user's key, a lookalike prefix (user-10 against user-1), an out-of-bucket URL, createItem rejecting another user's URL and deleteItem leaving another user's object in place, bringing the suite to 156. Considered and dropped: bounding COLLECTION_ITEM_TYPES_SELECT in src/lib/db/collections.ts with a take. The nested select is genuinely unbounded — one dashboard request loads every ItemCollection row for up to 21 collections — but a take samples rather than counts, and CollectionCard renders an icon for every distinct type the query returns, not just the dominant one, so a collection whose older items are a different type would silently lose that type's icon; that is a visible correctness regression rather than the cosmetic one it first looked like. The partial win is also smaller than it appears, since with only @@index([collectionId]) on ItemCollection Postgres still scans and sorts the collection's rows to take the top N, leaving only the Item → ItemType join and the rows crossing the wire as the saving. The exact fix is a prisma.item.groupBy on itemTypeId filtered by collection id, which needs one extra query, a second lookup to resolve itemTypeId to name and colour, and a rewrite of how both functions assemble their results — worth its own feature, still with no migration. Known gaps: GET /api/items/[id]/download still resolves the stored URL through the unscoped getObjectKeyFromUrl, so a row written before this fix that holds another user's key would still be proxied for download — the read side of the same issue, left alone as outside the agreed scope. Also still open from the same audit: no .max() bounds on the item schemas (including a cap on tags, which connectOrCreates into the global Tag table), Monaco loading from jsDelivr with no integrity check, the duplicated create and edit item forms, the item-type membership tables spread across six modules, and the repeated errorResponse, firstParam, UTC date formatter and empty-state helpers — the date formatter has already drifted, since FileRow adds year, so that one needs a decision on the intended format first. Verified with tsc, eslint, the Vitest suite and next build; nothing is user-visible, so the browser check is limited to confirming a file upload still works end to end.
+
+Collection Create
+The top bar's New Collection button, display only since Dashboard UI Phase 1, now opens a shadcn Dialog (src/components/collections/NewCollectionDialog.tsx, a client island inside the server TopBar) with a name and an optional description — the first write outside items, and the first file under src/components/collections. It mirrors NewItemDialog throughout: the form lives in a child that unmounts on close so each open starts blank, Create is disabled while the name is blank or a save is running, Escape and an outside click can't dismiss it mid-save (handleOpenChange ignores the change while the transition runs), and on success a sonner "Collection created" toast shows, the dialog closes and router.refresh() re-runs the (app) layout and dashboard page so the sidebar's Collections group, the recent-collection cards and the collections stat card all pick the new row up; errors show a toast plus per-field messages. The trigger keeps the old button's outline/lg/hidden sm:inline-flex styling and FolderPlus icon, so nothing moves in the top bar. Fields reuse the existing FormField and the items' TextareaField rather than new ones, following NewItemDialog, which already reaches across to @/components/auth/FormField. createCollectionSchema in the new src/lib/collection-validation.ts copies item-validation's shape — name trimmed and required, blank description stored as null through the same optionalText transform — and the createCollection query in src/lib/db/collections.ts connects the row to the user and returns the new id, like createItem. No migration was needed: Collection already had name, description, isFavorite, defaultTypeId, userId and timestamps, and the two the dialog doesn't set keep their schema defaults, so a new collection is non-favorite and lands in the sidebar's recent group rather than favorites. The createCollection action in the new src/actions/collections.ts follows the item actions exactly: requireUserId, safeParse, { success, data: { id }, error }, and a generic "Couldn't create this collection. Please try again." in try/catch. fieldErrorResult moved out of src/actions/items.ts into a shared src/lib/action-errors.ts so both action modules use one copy rather than a second inline definition; items.ts is otherwise unchanged. No API route was added, deliberately: creating is a mutation and goes through a server action like createItem, and nothing on the client reads a collection yet, so the spec's "API routes for client-side calls" goal has nothing to hit until collection detail lands — building an unused POST /api/collections was considered and dropped. Tests cover the schema (trimming, blank name rejected, blank and missing description both null), the query (user connect and returned id, null description) and the action (validation failure without touching the database, parsed data scoped to the signed-in user, database error), plus three for fieldErrorResult now that it is a shared utility: one message per field, only the first when a field fails two checks, and valid fields left out — behaviour no existing caller's tests exercised, since each only ever trips a single issue. That last case was checked against Zod directly to confirm it collects both messages, so the assertion isn't vacuous. The suite is at 167. The dialog and TopBar aren't unit tested, matching the item components. Known gaps: the new collection can't be favorited, renamed, deleted or filled with items yet, and /collections still 404s, so the "View all collections" link in the sidebar remains dead; TextareaField still lives under components/items despite now having a collections caller, worth moving to shared when collection edit duplicates this form the way ItemEditForm duplicates NewItemDialog; and there is no .max() bound on the name or description, the same gap the item schemas carry. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user and had not been reported back when the feature was completed.
