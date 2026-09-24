@@ -74,6 +74,13 @@ export interface ItemWithType {
   itemType: CollectionItemType;
 }
 
+// What the item drawer needs to render its header and action bar before the
+// full item loads. A card (ItemWithType) and a search result both satisfy it.
+export type ItemPreview = Pick<
+  ItemWithType,
+  "id" | "title" | "isFavorite" | "isPinned" | "itemType"
+>;
+
 export interface SidebarUserInfo {
   name?: string | null;
   email?: string | null;

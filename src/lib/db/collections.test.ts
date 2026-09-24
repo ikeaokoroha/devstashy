@@ -7,6 +7,7 @@ import {
   getAllCollections,
   getCollectionDetail,
   getPickerCollections,
+  getSearchCollections,
   updateCollection,
 } from "@/lib/db/collections";
 import { prisma } from "@/lib/prisma";
@@ -221,5 +222,32 @@ describe("deleteCollection", () => {
     await deleteCollection("user-1", "col-1");
 
     expect(prisma.item.deleteMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("getSearchCollections", () => {
+  it("scopes the query to the user, favorites first, capped at the limit", async () => {
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([]);
+
+    expect(await getSearchCollections("user-1", 200)).toEqual([]);
+    expect(prisma.collection.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1" },
+        orderBy: [{ isFavorite: "desc" }, { updatedAt: "desc" }],
+        take: 200,
+      })
+    );
+  });
+
+  it("flattens the relation count into itemCount", async () => {
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      { id: "col-1", name: "React Patterns", _count: { items: 4 } },
+      { id: "col-2", name: "Empty", _count: { items: 0 } },
+    ] as never);
+
+    expect(await getSearchCollections("user-1", 200)).toEqual([
+      { id: "col-1", name: "React Patterns", itemCount: 4 },
+      { id: "col-2", name: "Empty", itemCount: 0 },
+    ]);
   });
 });

@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { getCopyText } from "@/lib/item-detail";
 import { getItemTypeStyle } from "@/lib/item-types";
 import { cn } from "@/lib/utils";
-import type { ItemWithType } from "@/types/dashboard";
+import type { ItemPreview } from "@/types/dashboard";
 import type { ItemDetailJson, ItemDetailState } from "@/types/items";
 import { ItemDetailBody, ItemDetailSkeleton } from "./ItemDetailBody";
 import { ItemDrawerActions } from "./ItemDrawerActions";
@@ -16,7 +16,7 @@ interface ItemDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   // The clicked card's data, so the header renders before the detail arrives.
-  preview: ItemWithType | null;
+  preview: ItemPreview | null;
   detail: ItemDetailState;
   onRetry: () => void;
   editing: boolean;
@@ -96,7 +96,7 @@ export function ItemDrawer({
 }
 
 interface ItemDrawerHeaderProps {
-  preview: ItemWithType;
+  preview: ItemPreview;
   title: string;
   language: string | null;
 }

@@ -1,18 +1,30 @@
-# Current Feature
+# Current Feature: Global Search / Command Palette
 
-<!-- Feature name and short description -->
+A ⌘K / Ctrl+K command palette with fuzzy search across the user's items and collections, opened from the top bar's search input.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Open the palette with ⌘K on Mac / Ctrl+K on Windows, and by clicking the TopBar search input
+- Show the ⌘K hint in the search input placeholder
+- Fuzzy search across all of the user's items and collections
+- Group results into an Items section and a Collections section
+- Keyboard navigation: arrow keys to move, Enter to select
+- Show each item's type icon and each collection's item count
+- Selecting an item opens the item drawer; selecting a collection navigates to its page
+- Client-side search with no server round-trip per keystroke — searchable data is pre-fetched
 
 ## Notes
 
-<!-- Any extra notes -->
+- Built on the shadcn `cmdk` Command component, already in the project (added with the CollectionPicker in Add Items to Collections).
+- Search data per the spec: items (id, title, type, content preview) and collections (id, name, itemCount).
+- "Reuse existing data fetching functions" — `src/lib/db/items.ts` and `src/lib/db/collections.ts` already hold the user-scoped queries; a search-shaped select may be needed rather than the full `ITEM_CARD_SELECT`, which now loads whole item bodies.
+- Pre-fetching on app load means one query set in the (app) layout or a client fetch from an API route; the drawer's `GET /api/items/[id]` and `GET /api/collections` set the route pattern (session checked in the route, since the proxy doesn't cover /api).
+- Opening an item goes through `ItemDrawerProvider`'s `openItem`, which needs the card-shaped data the palette result carries; the drawer still isn't in the URL, the gap noted in the Item Drawer entry as "worth revisiting when ⌘K search needs to open items".
+- Every query must be scoped to `requireUserId` / the session user.
 
 ## History
 
