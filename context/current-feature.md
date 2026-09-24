@@ -1,49 +1,18 @@
-# Current Feature: Editor Preferences Settings
+# Current Feature
 
-An Editor Preferences section on /settings that stores Monaco editor preferences on the
-User row and applies them to the code editor, saving automatically as each control changes.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Add a `editorPreferences` JSON column to the User model, through a Prisma migration
-  (`prisma migrate dev` on the development branch — never `db push`)
-- Add an Editor Preferences card to /settings with:
-  - Font size dropdown
-  - Tab size dropdown
-  - Word wrap toggle (default: on)
-  - Minimap toggle (default: off)
-  - Theme dropdown: vs-dark, monokai, github-dark (default: vs-dark)
-- Server action to update the preferences, scoped to the signed-in user
-- Auto-save on every change, with no save button, and a success toast on save
-- An EditorPreferencesContext so client components can read the preferences
-- Apply the preferences to the Monaco editor (`src/components/items/CodeEditor.tsx`)
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Settings lives at `src/app/(app)/settings/page.tsx` with its components in
-  `src/components/settings`; the page already scopes to the signed-in user through
-  `requireUserId`. Actions would follow `src/actions/profile.ts`.
-- `CodeEditor.tsx` currently hardcodes `fontSize: 12`, `tabSize: 2`,
-  `minimap: { enabled: false }` and its own `devstash-dark` theme (a `vs-dark` base with
-  transparent editor and gutter backgrounds so the frame's `bg-muted/40` shows through);
-  it doesn't set `wordWrap` at all. The preferences replace those four values.
-- Monaco ships `vs`, `vs-dark` and `hc-black` only — `monokai` and `github-dark` aren't
-  built in, so each needs a `defineTheme` colour set, and each should keep the
-  transparent-background treatment so the window frame still works.
-- CodeEditor is used read-only in the drawer's view mode and editable in `ContentField`
-  (New Item dialog and the drawer's edit form), so the context has to reach both; only
-  snippets and commands use it, while prompts and notes use `MarkdownEditor`, which the
-  spec doesn't cover.
-- To decide during load/start: the option lists for font size and tab size (the spec only
-  says "dropdown"), whether a failed auto-save reverts the control, and whether every
-  change fires a toast or only a settled one (debounced) — a toast per keystroke-equivalent
-  change would be noisy.
-- Tests per the Testing section: the new server action and any preferences utility
-  (defaults, parsing/validating the JSON column) get Vitest coverage; components don't.
+<!-- Any extra notes -->
 
 ## History
 
@@ -171,3 +140,6 @@ The three list pages — /items/[type], /collections and /collections/[id] — n
 
 Settings Page
 Added /settings and moved the account actions there from /profile, so the profile page is about the account and what's in it while settings is where you change or end it. The page sits in the (app) route group like /profile, so it keeps the sidebar and top bar, and is protected the same two ways: /settings/:path* joined the proxy matcher (the :path* matches zero segments, so the bare /settings is covered, which is how /profile has always worked) and the page itself scopes to the signed-in user through requireUserId, with the same notFound() on a missing row that /profile carries for a JWT from a deleted account. AccountActions, ChangePasswordDialog and DeleteAccountDialog moved from src/components/profile to a new src/components/settings with git mv, so their history follows and only AccountActions changed — its two imports. The dialogs, changePassword and deleteAccount in src/actions/profile.ts, and DELETE_CONFIRMATION in src/lib/profile.ts are all untouched, so deleteAccount still signs out to /sign-in?deleted=1 and the actions keep their existing tests. The settings page reuses getProfileUser for the single hasPassword flag it needs, which pulls image, createdAt and the linked accounts it doesn't use; a lighter query was considered and dropped as a new function to test for one boolean, and /profile still runs the same lookup for ProfileHeader, so no query was added. The sidebar user dropdown (SidebarUser) gained a Settings entry with Lucide's Settings icon between Profile and the separator above Sign out. The spec asked for "forgot password" to move, but the card holds change password — the signed-in dialog that verifies the current password and rejects OAuth-only accounts — while forgot password is the signed-out flow at /forgot-password, which stays where it is; the change-password dialog is what moved. No schema change, no migration and no new actions or utilities, so the suite is unchanged at 272 and no tests were added, matching the convention that components aren't unit tested. Known gaps: /settings holds only the account card, so there are no real settings yet (a theme toggle, the light mode the spec lists as optional, or export would live here); the settings query loads more of the user row than it reads; and the sidebar dropdown entry isn't marked active on the page it points at, the same as Profile.
+
+Editor Preferences Settings
+/settings gained an Editor card — font size, tab size, word wrap, minimap and theme — that saves on every change with no save button, closing the "no real settings yet" gap the settings page shipped with. One schema change: an editorPreferences Json? column on User, applied to the development branch as the add_editor_preferences migration, a single additive ALTER TABLE with no backfill. It is nullable on purpose rather than defaulted, since a Prisma Json default would give every row a snapshot of today's defaults and a later change to one wouldn't reach existing users, while null reads as whatever the defaults currently are. src/lib/editor-preferences.ts holds the option arrays (font 11–18, tab 2/4/8, the three themes), which are the single source of truth for both the values and the types through z.literal, plus DEFAULT_EDITOR_PREFERENCES — 12px, 2 spaces, vs-dark, exactly what CodeEditor hardcoded before, so an account that never opens settings sees no change. It exports two schemas rather than one, because the two directions want opposite behaviour: saving is strict, so an unlisted font size is a rejected payload, while reading the column is lenient per field through .catch, so a null, partial, or older-shape value still renders an editor and one bad value doesn't reset the other four. Word wrap defaults to on, which is the one visible change for existing items: the editor set no wordWrap at all before, so long lines scrolled sideways. src/lib/editor-themes.ts defines monokai and github-dark, which Monaco doesn't ship (only vs, vs-dark and hc-black), each as a vs-dark base plus token rules; all three keep the transparent editor and gutter backgrounds so the window frame's bg-muted/40 still shows through, and all three are registered in beforeMount rather than just the active one, so switching theme only has to change a theme name. A test asserts every dropdown option has a definition and that rule colours are bare while map colours carry the #, since Monaco fails silently on the wrong form. The write path is getEditorPreferences and updateEditorPreferences in src/lib/db/users.ts behind the saveEditorPreferences action, which follows the item and collection actions (requireUserId, safeParse, fieldErrorResult, a generic message in try/catch); the update uses updateMany on the id so a missing row is a false rather than a throw, and it writes the five keys out explicitly instead of casting the object into Prisma's InputJsonObject, which both satisfies the missing index signature and guarantees nothing else can reach the column. The action saves the whole object rather than one field, so a write can't leave the column half updated. EditorPreferencesProvider sits in the (app) shell beside the drawer and search providers, not on the settings page, because the editors it feeds render inside the drawer and the New Item dialog — so a change reaches an open editor with no router.refresh() — and because the settings card can then read the provider instead of running a query of its own. It applies a change immediately, rolls back if the save fails, and guards against a stale response: only the newest save may toast or roll back, and a success is recorded even when a newer save has overtaken it, so an ignored success followed by a failed save can't roll the UI back past a change that did commit (a hole found during the test pass). Re-selecting the same option returns early, since Base UI fires a change for it. CodeEditor now takes fontSize, tabSize, minimap, wordWrap and theme from the provider. Line height had to stop being a constant: EDITOR_LINE_HEIGHT was a fixed 18px used both for Monaco's lineHeight and for the pre-mount height estimate, which clips 18px type, so it became getEditorLineHeight(fontSize) at a 1.5 ratio and estimateContentHeight now takes the line height — the reason code-editor.test.ts changed. Added the shadcn select and switch components, both Base UI, and the card's selects format their trigger through Select.Value's render function since Base UI otherwise shows the raw value. Thirty-four tests cover the preferences module, the theme definitions, the two new queries, the action's four paths and the line-height change, bringing the suite to 306; the provider, the card and CodeEditor aren't unit tested, matching the convention. Known gaps: the provider's own save logic — the optimistic update, the rollback and the stale-response guard — is untested, since it is a client component and the Vitest config has no jsdom, the same gap SearchProvider's fetch-and-revalidate carries; only snippets and commands are affected, because MarkdownEditor (prompts and notes) has no settings of its own and the spec didn't cover it; a file item's editor settings are irrelevant, as is any non-code type; getProfileUser is still untested even though users.test.ts now exists beside it, left alone as unrelated to this feature; the shell runs a third Neon query per request for the preferences, parallel with the other two; and there is no preview in the card, so the effect of a change is only visible by opening a snippet. Verified with tsc, eslint, the Vitest suite and next build; the browser check was left to the user, in particular that switching theme repaints an already-open drawer and that 18px type isn't clipped.
