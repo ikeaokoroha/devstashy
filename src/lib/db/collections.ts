@@ -3,6 +3,7 @@ import type {
   CreateCollectionData,
   UpdateCollectionData,
 } from "@/lib/collection-validation";
+import { COLLECTIONS_PER_PAGE, getPageSkip } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import type {
   CollectionDetail,
@@ -13,6 +14,7 @@ import type {
   SidebarCollections,
 } from "@/types/dashboard";
 import type { ItemCollectionRef } from "@/types/items";
+import type { Paginated } from "@/types/pagination";
 import type { SearchCollection } from "@/types/search";
 
 const COLLECTION_ITEM_TYPES_SELECT = {
@@ -70,16 +72,28 @@ export async function getRecentCollections(
   return collections.map(toCollectionSummary);
 }
 
-// Every collection the user owns, for the /collections page. Unbounded like the
-// item list pages, which have no pagination either.
-export async function getAllCollections(userId: string): Promise<CollectionSummary[]> {
-  const collections = await prisma.collection.findMany({
-    where: { userId },
-    orderBy: [{ isFavorite: "desc" }, { updatedAt: "desc" }],
-    select: COLLECTION_SUMMARY_SELECT,
-  });
+// One page of the user's collections, for the /collections page: favorites
+// first, then most recently updated. Only the page's rows are loaded, which
+// also bounds how many collections drag their item rows across for the type
+// ranking.
+export async function getAllCollections(
+  userId: string,
+  page: number
+): Promise<Paginated<CollectionSummary>> {
+  const where = { userId };
 
-  return collections.map(toCollectionSummary);
+  const [collections, total] = await Promise.all([
+    prisma.collection.findMany({
+      where,
+      orderBy: [{ isFavorite: "desc" }, { updatedAt: "desc" }],
+      skip: getPageSkip(page, COLLECTIONS_PER_PAGE),
+      take: COLLECTIONS_PER_PAGE,
+      select: COLLECTION_SUMMARY_SELECT,
+    }),
+    prisma.collection.count({ where }),
+  ]);
+
+  return { rows: collections.map(toCollectionSummary), total };
 }
 
 // One collection's own row for the detail page header. findFirst on id and

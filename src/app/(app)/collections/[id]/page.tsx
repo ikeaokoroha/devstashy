@@ -5,8 +5,15 @@ import { Folder, Star } from "lucide-react";
 
 import { CollectionActions } from "@/components/collections/CollectionActions";
 import { CollectionItems } from "@/components/collections/CollectionItems";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { getCollectionDetail } from "@/lib/db/collections";
 import { getItemsByCollection } from "@/lib/db/items";
+import {
+  getPageCount,
+  isPageOutOfRange,
+  parsePageParam,
+  ITEMS_PER_PAGE,
+} from "@/lib/pagination";
 import { requireUserId } from "@/lib/session";
 
 // generateMetadata and the page both need the row, so one lookup serves both,
@@ -23,20 +30,29 @@ export async function generateMetadata({
   return { title: collection ? `${collection.name} · Devstashy` : "Devstashy" };
 }
 
-export default async function CollectionPage({ params }: PageProps<"/collections/[id]">) {
-  const { id } = await params;
+export default async function CollectionPage({
+  params,
+  searchParams,
+}: PageProps<"/collections/[id]">) {
+  const [{ id }, { page: pageParam }] = await Promise.all([params, searchParams]);
+  const page = parsePageParam(pageParam);
   const userId = await requireUserId();
 
   // Both queries are scoped to the user, so the items one can run before the
   // collection is known to exist: a foreign or unknown id finds nothing either
   // way. The cost is one wasted query on the 404 path, against a saved Neon
   // round trip on every real page view.
-  const [collection, items] = await Promise.all([
+  const [collection, { rows: items, total }] = await Promise.all([
     getCollection(userId, id),
-    getItemsByCollection(userId, id),
+    getItemsByCollection(userId, id, page),
   ]);
 
   if (!collection) {
+    notFound();
+  }
+
+  const pageCount = getPageCount(total, ITEMS_PER_PAGE);
+  if (isPageOutOfRange(page, pageCount)) {
     notFound();
   }
 
@@ -58,7 +74,7 @@ export default async function CollectionPage({ params }: PageProps<"/collections
               )}
             </div>
             <p className="text-muted-foreground">
-              {items.length} {items.length === 1 ? "item" : "items"}
+              {total} {total === 1 ? "item" : "items"}
             </p>
             {collection.description && (
               <p className="mt-2 text-sm text-muted-foreground">{collection.description}</p>
@@ -71,6 +87,12 @@ export default async function CollectionPage({ params }: PageProps<"/collections
       <CollectionItems
         items={items}
         emptyMessage="No items in this collection yet. Add one from an item's Collections field."
+      />
+
+      <PaginationControls
+        page={page}
+        pageCount={pageCount}
+        basePath={`/collections/${collection.id}`}
       />
     </div>
   );

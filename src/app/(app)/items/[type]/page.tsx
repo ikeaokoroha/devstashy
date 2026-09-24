@@ -5,8 +5,15 @@ import { FileList } from "@/components/items/FileList";
 import { ImageGrid } from "@/components/items/ImageGrid";
 import { ItemGrid } from "@/components/items/ItemGrid";
 import { NewItemDialog } from "@/components/items/NewItemDialog";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { getItemsByType } from "@/lib/db/items";
 import { isCreatableItemType } from "@/lib/item-validation";
+import {
+  getPageCount,
+  isPageOutOfRange,
+  parsePageParam,
+  ITEMS_PER_PAGE,
+} from "@/lib/pagination";
 import { requireUserId } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import {
@@ -23,17 +30,28 @@ export async function generateMetadata({
   return { title: typeName ? `${capitalize(type)} · Devstashy` : "Devstashy" };
 }
 
-export default async function ItemsByTypePage({ params }: PageProps<"/items/[type]">) {
-  const { type } = await params;
+export default async function ItemsByTypePage({
+  params,
+  searchParams,
+}: PageProps<"/items/[type]">) {
+  const [{ type }, { page: pageParam }] = await Promise.all([params, searchParams]);
   const typeName = getItemTypeNameFromSlug(type);
   if (!typeName) {
     notFound();
   }
 
+  const page = parsePageParam(pageParam);
   const userId = await requireUserId();
-  const items = await getItemsByType(userId, typeName);
+  const { rows: items, total } = await getItemsByType(userId, typeName, page);
+
+  const pageCount = getPageCount(total, ITEMS_PER_PAGE);
+  if (isPageOutOfRange(page, pageCount)) {
+    notFound();
+  }
+
   const { icon: Icon, textClass, bgClass } = getItemTypeStyle(typeName);
-  const label = capitalize(getItemTypeSlug(typeName));
+  const slug = getItemTypeSlug(typeName);
+  const label = capitalize(slug);
   const emptyMessage = `No ${label.toLowerCase()} yet.`;
 
   return (
@@ -48,7 +66,7 @@ export default async function ItemsByTypePage({ params }: PageProps<"/items/[typ
           <div>
             <h1 className="text-2xl font-semibold">{label}</h1>
             <p className="text-muted-foreground">
-              {items.length} {items.length === 1 ? "item" : "items"}
+              {total} {total === 1 ? "item" : "items"}
             </p>
           </div>
         </div>
@@ -70,6 +88,8 @@ export default async function ItemsByTypePage({ params }: PageProps<"/items/[typ
       ) : (
         <ItemGrid items={items} emptyMessage={emptyMessage} />
       )}
+
+      <PaginationControls page={page} pageCount={pageCount} basePath={`/items/${slug}`} />
     </div>
   );
 }

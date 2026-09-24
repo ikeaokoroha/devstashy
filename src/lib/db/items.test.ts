@@ -6,14 +6,17 @@ import {
   getItemDetail,
   getItemFile,
   getItemsByCollection,
+  getItemsByType,
   getSearchItems,
   updateItem,
 } from "@/lib/db/items";
+import { ITEMS_PER_PAGE } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     item: {
+      count: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
@@ -341,8 +344,9 @@ describe("createItem", () => {
 describe("getItemsByCollection", () => {
   it("scopes the query to the user and the collection, pinned items first", async () => {
     vi.mocked(prisma.item.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.item.count).mockResolvedValue(0 as never);
 
-    expect(await getItemsByCollection("user-1", "col-1")).toEqual([]);
+    expect(await getItemsByCollection("user-1", "col-1", 1)).toEqual({ rows: [], total: 0 });
     expect(prisma.item.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId: "user-1", collections: { some: { collectionId: "col-1" } } },
@@ -360,11 +364,55 @@ describe("getItemsByCollection", () => {
         tags: [{ name: "auth" }, { name: "react" }],
       },
     ] as never);
+    vi.mocked(prisma.item.count).mockResolvedValue(1 as never);
 
-    const [item] = await getItemsByCollection("user-1", "col-1");
+    const { rows } = await getItemsByCollection("user-1", "col-1", 1);
 
-    expect(item.tags).toEqual(["auth", "react"]);
-    expect(item.itemType).toEqual({ id: "type-1", name: "snippet" });
+    expect(rows[0].tags).toEqual(["auth", "react"]);
+    expect(rows[0].itemType).toEqual({ id: "type-1", name: "snippet" });
+  });
+
+  it("takes one page and counts the rest over the same filter", async () => {
+    vi.mocked(prisma.item.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.item.count).mockResolvedValue(50 as never);
+
+    const where = { userId: "user-1", collections: { some: { collectionId: "col-1" } } };
+
+    expect(await getItemsByCollection("user-1", "col-1", 2)).toEqual({ rows: [], total: 50 });
+    expect(prisma.item.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 21, take: ITEMS_PER_PAGE })
+    );
+    expect(prisma.item.count).toHaveBeenCalledWith({ where });
+  });
+});
+
+describe("getItemsByType", () => {
+  it("filters on the system type, pinned items first", async () => {
+    vi.mocked(prisma.item.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.item.count).mockResolvedValue(0 as never);
+
+    expect(await getItemsByType("user-1", "snippet", 1)).toEqual({ rows: [], total: 0 });
+    expect(prisma.item.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // isSystem keeps a custom type of the same name out of the list.
+        where: { userId: "user-1", itemType: { name: "snippet", isSystem: true } },
+        orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
+        skip: 0,
+        take: ITEMS_PER_PAGE,
+      })
+    );
+  });
+
+  it("skips a whole page per page before the current one", async () => {
+    vi.mocked(prisma.item.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.item.count).mockResolvedValue(100 as never);
+
+    const { total } = await getItemsByType("user-1", "snippet", 4);
+
+    expect(total).toBe(100);
+    expect(prisma.item.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 63, take: ITEMS_PER_PAGE })
+    );
   });
 });
 
