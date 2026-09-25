@@ -12,15 +12,17 @@ import {
 
 interface SidebarCollapsibleGroupProps {
   label: string;
+  className?: string;
   children: React.ReactNode;
 }
 
 export function SidebarCollapsibleGroup({
   label,
+  className,
   children,
 }: SidebarCollapsibleGroupProps) {
   return (
-    <SidebarGroup>
+    <SidebarGroup className={className}>
       <Collapsible defaultOpen>
         <SidebarGroupLabel
           render={<CollapsibleTrigger />}

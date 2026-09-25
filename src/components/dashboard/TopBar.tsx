@@ -3,16 +3,21 @@ import { Star } from "lucide-react";
 
 import { NewCollectionDialog } from "@/components/collections/NewCollectionDialog";
 import { CreateMenu } from "@/components/dashboard/CreateMenu";
+import { MobileSidebarToggle } from "@/components/dashboard/MobileSidebarToggle";
 import { NewItemDialog } from "@/components/items/NewItemDialog";
 import { SearchTrigger } from "@/components/search/SearchTrigger";
+import { Logo } from "@/components/shared/Logo";
 import { Button } from "@/components/ui/button";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export function TopBar() {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-4 border-b px-4 md:px-6">
-      <div className="flex-1">
-        <SidebarTrigger className="-ml-1" />
+    // md:pl-3.5 centres the 28px logo mark over the 56px icon strip below it.
+    <header className="flex h-16 shrink-0 items-center gap-4 border-b px-4 md:pr-6 md:pl-3.5">
+      <div className="flex flex-1 items-center gap-3">
+        {/* From md up the toggle lives at the top of the sidebar instead. */}
+        <MobileSidebarToggle className="-ml-1 md:hidden" />
+        {/* Icon only below sm, so the search box keeps its room on a phone. */}
+        <Logo href="/" wordmarkClassName="hidden sm:inline" />
       </div>
 
       <SearchTrigger />

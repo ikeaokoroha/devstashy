@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarFooter } from "@/components/ui/sidebar";
+import { ICON_MODE_PADDING } from "@/lib/sidebar";
 import type { SidebarUserInfo } from "@/types/dashboard";
 
 interface SidebarUserProps {
@@ -20,17 +21,24 @@ interface SidebarUserProps {
 
 export function SidebarUser({ user }: SidebarUserProps) {
   return (
-    <SidebarFooter className="border-t border-sidebar-border">
+    <SidebarFooter className={`border-t border-sidebar-border ${ICON_MODE_PADDING}`}>
       <DropdownMenu>
-        <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring data-popup-open:bg-sidebar-accent">
-          <UserAvatar name={user.name} email={user.email} image={user.image} size="lg" />
-          <div className="min-w-0 flex-1">
+        <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring data-popup-open:bg-sidebar-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
+          {/* The ! beats the avatar's own data-[size=lg]:size-10, which has equal specificity. */}
+          <UserAvatar
+            name={user.name}
+            email={user.email}
+            image={user.image}
+            size="lg"
+            className="group-data-[collapsible=icon]:size-8!"
+          />
+          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm font-medium">{user.name ?? user.email}</p>
             {user.name && (
               <p className="truncate text-xs text-muted-foreground">{user.email}</p>
             )}
           </div>
-          <ChevronsUpDown className="size-4 text-muted-foreground" />
+          <ChevronsUpDown className="size-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" sideOffset={8}>
           <DropdownMenuItem render={<Link href="/profile" />}>

@@ -18,11 +18,12 @@ export function SearchTrigger() {
         onClick={openSearch}
         aria-label="Search items and collections"
         aria-keyshortcuts="Meta+K Control+K"
-        className="h-9 w-full rounded-lg border border-input bg-transparent py-1 pr-12 pl-9 text-left text-sm text-muted-foreground transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+        className="h-9 w-full truncate rounded-lg border border-input bg-transparent py-1 pr-3 pl-9 sm:pr-12 text-left text-sm text-muted-foreground transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
       >
         Search items...
       </button>
-      <Kbd className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2">⌘K</Kbd>
+      {/* No hint on phones: there's no keyboard, and the top bar logo needs the room. */}
+      <Kbd className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 sm:inline-flex">⌘K</Kbd>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { HomeContainer } from "@/components/home/HomeContainer";
-import { HomeLogo } from "@/components/home/HomeLogo";
+import { Logo } from "@/components/shared/Logo";
 import { FOOTER_COLUMNS, FOOTER_COPY } from "@/lib/home-content";
 
 export function SiteFooter() {
@@ -9,7 +9,7 @@ export function SiteFooter() {
     <footer className="border-t bg-card/30 pt-14">
       <HomeContainer className="grid gap-12 pb-11 md:grid-cols-[1.4fr_2fr]">
         <div>
-          <HomeLogo />
+          <Logo />
           <p className="mt-3.5 max-w-xs text-sm text-muted-foreground">
             {FOOTER_COPY.tagline}
           </p>
