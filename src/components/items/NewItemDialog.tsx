@@ -237,18 +237,37 @@ interface NewItemDialogProps {
   defaultType?: CreatableItemType;
   label?: string;
   size?: "default" | "lg";
+  className?: string;
+  // Passing both switches the dialog to controlled, trigger-less mode.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 // A New Item button and its dialog: the top bar's generic one, or a type page's
-// "New Snippet" with that type preselected.
+// "New Snippet" with that type preselected. Callers that open it from a dropdown
+// menu item pass open/onOpenChange instead, since a dialog rendered inside the
+// menu would unmount the moment the menu closes — see EditCollectionDialog.
 export function NewItemDialog({
   defaultType = "snippet",
   label = "New Item",
   size = "lg",
+  className,
+  open: controlledOpen,
+  onOpenChange,
 }: NewItemDialogProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [isSaving, startSaving] = useTransition();
+  const isControlled = controlledOpen !== undefined && onOpenChange !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+
+  function setOpen(nextOpen: boolean) {
+    if (isControlled) {
+      onOpenChange(nextOpen);
+    } else {
+      setUncontrolledOpen(nextOpen);
+    }
+  }
 
   function handleOpenChange(nextOpen: boolean) {
     // Escape or an outside click can't dismiss the dialog mid-save.
@@ -264,10 +283,12 @@ export function NewItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button size={size} />}>
-        <Plus />
-        {label}
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger render={<Button size={size} className={className} />}>
+          <Plus />
+          {label}
+        </DialogTrigger>
+      )}
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
         <NewItemForm
           defaultType={defaultType}

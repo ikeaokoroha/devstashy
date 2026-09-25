@@ -1,18 +1,45 @@
-# Current Feature
+# Current Feature: Mobile Create Menu
 
-<!-- Feature name and short description -->
+A `+` dropdown in the top bar on phones, offering New Item and New Collection, so a
+mobile user can create a collection without first navigating to /collections.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Below `sm`, the top bar shows a single `+` icon button whose dropdown opens either
+  the New Item dialog or the New Collection dialog.
+- At `sm` and up nothing changes: the labeled New Collection and New Item buttons
+  render exactly as they do today.
+- Both dialogs keep working from their existing call sites (the top bar, the
+  /collections page header, and the /items/[type] page header) with no change there.
+- The search box keeps usable width on a 375px-wide screen.
 
 ## Notes
 
-<!-- Any extra notes -->
+- Why a dropdown rather than a second icon button: at 375px the bar has ~125px left
+  for search after the sidebar trigger, the star and a labeled `lg` New Item button,
+  so a second labeled button doesn't fit. Two unlabeled icon buttons would fit, but
+  `Plus` next to `FolderPlus` at 16px is ambiguous. The dropdown costs 36px for both
+  actions and still has room if a third create action is added later.
+- Mobile only, deliberately: New Item is the most common action and the top bar is
+  its primary surface, so putting it behind a menu on a wide screen would cost a
+  click to solve a problem that only exists on a phone.
+- `NewItemDialog` and `NewCollectionDialog` each own their `DialogTrigger`, and a
+  dialog rendered inside a dropdown menu unmounts the moment the menu closes — the
+  problem `EditCollectionDialog` already documents. Both need an optional controlled,
+  trigger-less mode following that component: when `open`/`onOpenChange` are passed,
+  the caller owns the state and no trigger renders. The uncontrolled path stays the
+  default, so the three existing call sites don't move.
+- `CreateMenu` should not be mobile-specific internally — only where it's rendered —
+  so showing it at every width later is a class change.
+- `NewItemDialog` needs a `className` prop to hide below `sm`, the way
+  `NewCollectionDialog` already has one.
+- No schema change, no migration, no server action and no query: this is components
+  only. The shadcn `dropdown-menu` already exists, so no new dependency.
+- Components aren't unit tested by convention, so the suite should stay at 353.
 
 ## History
 

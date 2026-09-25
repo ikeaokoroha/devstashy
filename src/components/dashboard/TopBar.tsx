@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 
 import { NewCollectionDialog } from "@/components/collections/NewCollectionDialog";
+import { CreateMenu } from "@/components/dashboard/CreateMenu";
 import { NewItemDialog } from "@/components/items/NewItemDialog";
 import { SearchTrigger } from "@/components/search/SearchTrigger";
 import { Button } from "@/components/ui/button";
@@ -26,8 +27,9 @@ export function TopBar() {
         >
           <Star />
         </Button>
+        <CreateMenu className="sm:hidden" />
         <NewCollectionDialog className="hidden sm:inline-flex" />
-        <NewItemDialog />
+        <NewItemDialog className="hidden sm:inline-flex" />
       </div>
     </header>
   );
