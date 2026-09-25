@@ -1,18 +1,33 @@
-# Current Feature
+# Current Feature: Homepage
 
-<!-- Feature name and short description -->
+Rebuild the static mockup in `prototypes/homepage/` as the real app homepage at `/`, in React, Tailwind v4 and shadcn/ui, replacing the placeholder `src/app/page.tsx`.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Replace the placeholder `src/app/page.tsx` with the full marketing page: nav, hero (chaos → arrow → dashboard preview), features, AI section, pricing, final CTA, footer
+- Keep `/` public — the proxy matcher must not gain it
+- Make the page auth-aware: signed out shows Sign In (`/sign-in`) and Get Started (`/register`); signed in shows Go to Dashboard (`/dashboard`), with no redirect
+- Point every button and link at a real route or an on-page anchor; drop the mockup's links that have no destination (Docs, Changelog, Privacy, Terms, etc.)
+- Split into server components by default, with client components only for the four interactive pieces: nav scroll state, the chaos animation, the reveal-on-scroll wrapper, and the billing period toggle/price
+- Build with Tailwind utilities and existing shadcn components (Button, Badge, Card, Kbd) — no new CSS files, no `tailwind.config.*`
+- Use the app's `--color-type-*` tokens and `getItemTypeStyle` for type colours and icons rather than the prototype's own palette
+- Keep it DRY: feature cards, plan features and section copy come from arrays in `src/lib/home-content.ts`, and one `Reveal` wrapper serves every revealed section
+- Port the chaos loop's safeguards (speed damping, max speed, 32ms delta cap, stop when off-screen or the tab is hidden) and respect `prefers-reduced-motion`
+- Stack chaos/arrow/dashboard vertically on mobile with the arrow rotated 90°, and collapse the feature and plan grids to one column
+- Export page `metadata` from the mockup's title and description
 
 ## Notes
 
-<!-- Any extra notes -->
+- Spec: `context/features/homepage-spec.md`; visual reference: `prototypes/homepage/` (index.html, styles.css, script.js), which stays in the repo and is not imported from `src/`
+- New components live in `src/components/home/`; brand marks (Notion, GitHub, Slack, VS Code) stay inline SVG in a `BrandIcons.tsx`, since Lucide has no brand icons
+- The billing toggle uses a context provider (following `ItemDrawerProvider`/`SearchProvider`) so only the toggle and the Pro price line are client leaves inside a server-rendered pricing section
+- Anything not expressible as a utility (hero glow, chaos keyframes, the mobile `arrow-pulse-down` rotation) goes in `globals.css` under `@layer components`, like `.markdown-preview`
+- Components aren't unit tested, so the suite stays at 353 unless a helper lands in `src/lib/`, which gets its own `*.test.ts`
+- Out of scope: billing (Go Pro → `/register`, no Stripe), light mode (the app is dark-only), and docs/changelog/legal pages
 
 ## History
 
