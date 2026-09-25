@@ -1,45 +1,18 @@
-# Current Feature: Drawer Actions Mobile Overflow (fix)
+# Current Feature
 
-The item drawer's action bar overflows on a phone, pushing Delete off the right
-edge, so an item can't be deleted from the drawer on mobile.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Every action in the item drawer — Favorite, Pin, Copy, Download, Edit and Delete —
-  is visible and reachable on a 375px-wide screen.
-- Nothing changes at `sm` and up, where the row already fits on one line.
-- Delete never ends up stranded alone on its own row at any width.
+<!-- Goals and requirements -->
 
 ## Notes
 
-- Cause: the drawer is `data-[side=right]:w-3/4` with `sm:max-w-sm` only from `sm` up
-  (`src/components/ui/sheet.tsx`), so on a 375px phone it is 281px wide, and the
-  action bar's `px-6` leaves about 233px of content width. The bar is
-  `flex items-center gap-1` with no wrapping, and Favorite, Pin, Copy and Edit are
-  labeled `sm` buttons that can't shrink below their text — together about 326px.
-  Delete is last and behind `ml-auto`, so the overflow pushes it off the right edge.
-  A file item is worse, since Download adds roughly another 78px.
-- First attempt, reverted on review: let the row wrap and put `ml-auto` on a wrapper
-  holding Edit and Delete. It fixed the clipping but read as a staircase — three
-  labelled buttons on the left of line one, two pushed to the right of line two.
-- Fix: hide each button's label below `sm` so all six fit on one row, keeping the
-  same shape as desktop. `display: none` text is dropped from the accessibility
-  tree, so every button needs an explicit `aria-label`; Copy's has to track its
-  status, since the label is what confirms the copy. `FavoriteButton`'s `showLabel`
-  is a prop rather than a class, so it takes a `labelClassName` the drawer passes
-  `hidden sm:inline` to — cards and the collection header are unaffected.
-  `PinButton` is drawer-only, so it hides its label directly.
-- `flex-wrap` stays as a floor for a very narrow screen: six icon buttons need about
-  218px, which fits the 233px at 375px but not a 320px phone's 192px. Edit and
-  Delete keep their wrapper so they'd wrap together if it ever came to that.
-- Components only: no schema change, no migration, no action and no query, so the
-  suite should stay at 353.
-- Found during the Mobile Create Menu browser check and deliberately deferred to its
-  own branch, since it is a pre-existing bug unrelated to that feature.
+<!-- Any extra notes -->
 
 ## History
 
@@ -191,3 +164,6 @@ The placeholder / page is now the real marketing homepage, rebuilt from prototyp
 
 Mobile Create Menu
 Below `sm` the top bar now shows a single `+` button whose dropdown opens either the New Item or the New Collection dialog, closing a gap where New Collection was hidden on a phone behind `hidden sm:inline-flex` and could only be reached by navigating to /collections, which renders its own create button. The bar had no room for a second labeled button: at 375px the sidebar trigger, the favorites star and a labeled `lg` New Item button leave the search box about 125px, and search is the greedy `w-full max-w-md` element between two `flex-1` sides, so a second `lg` button would have taken it to zero. Two unlabeled icon buttons would have fit, but `Plus` beside `FolderPlus` at 16px is a coin flip; the dropdown costs 36px for both actions and still has room if a third create action is added later. Mobile only, deliberately — New Item is the most common action and the top bar is its primary surface, so putting it behind a menu on a wide screen would cost a click to solve a problem that only exists on a phone; `CreateMenu` is nonetheless not mobile-specific internally, so showing it at every width later is a class change. The one structural cost was that `NewItemDialog` and `NewCollectionDialog` each own their `DialogTrigger`, and a dialog rendered inside a dropdown menu unmounts the moment the menu closes — the problem `EditCollectionDialog` already documents and solves by being controlled and trigger-less. Both dialogs gained an optional controlled mode rather than a second trigger-less component: when `open` and `onOpenChange` are both passed the caller owns the state and no trigger renders, otherwise the existing local state runs unchanged, so the three existing call sites (the top bar, the /collections header, the /items/[type] header) didn't move. The mid-save close guard wraps a shared `setOpen` in both modes, so Escape still can't dismiss a save in flight when the dialog was opened from the menu. `CreateMenu` holds two booleans rather than a `"item" | "collection" | null` union, matching `CollectionCardMenu`, and renders both dialogs as siblings of the menu. `NewItemDialog` gained a `className` so the labeled pair can hide below `sm`; `Button` already renders `inline-flex`, so `hidden sm:inline-flex` leaves the `sm`-and-up markup exactly as it was. One fix came from the browser check: "New Collection" wrapped onto two lines, because the popup's default `w-(--anchor-width)` sizes it to the trigger — sensible for a wide trigger like `CollectionPicker`'s, but here the trigger is a 36px icon, so the menu fell back to its `min-w-32` floor of 128px. `CollectionCardMenu` had never hit this only because "Edit" and "Delete" are short. Adding `w-auto` lets the popup size to its widest item, confirmed against the project's own `cn` so tailwind-merge drops the anchor-width class rather than leaving both in play, with `min-w-32` surviving as the floor. No schema change, no migration, no action and no query — components only, and the shadcn `dropdown-menu` already existed, so no new dependency. No tests were added and the suite stays at 353, matching the convention that components aren't unit tested. Known gaps: the create menu duplicates the two dialogs' triggers as menu entries, so a third create action has to be added in two places; the `+` button's dropdown is the only place on a phone where both create actions sit together, so the labeled desktop buttons and the menu can drift in wording; and the drawer's action bar has the same kind of mobile overflow — Delete is pushed off the right edge of a 281px drawer — which was found during this feature's browser check and deliberately left for its own fix branch. Verified with tsc, eslint, the Vitest suite and next build, and confirmed in the browser, which is what produced the dropdown width fix.
+
+Drawer Actions Mobile Overflow (fix)
+The item drawer's Delete button was unreachable on a phone, so an item could be opened but not deleted there — the gap the Mobile Create Menu entry left for its own branch. The drawer is `data-[side=right]:w-3/4` with `sm:max-w-sm` applying only from `sm` up, so on a 375px screen it is 281px wide and the action bar's `px-6` leaves about 233px of content. The bar was `flex items-center gap-1` with no wrapping, and Favorite, Pin, Copy and Edit are labelled `sm` buttons that can't shrink below their text — about 326px together, and worse on a file item, where Download adds roughly another 78px. Delete is last and sat behind `ml-auto`, so the overflow pushed it clean off the right edge rather than merely crowding it. The first attempt let the row wrap and moved `ml-auto` onto a wrapper holding Edit and Delete, so the pair would always wrap together rather than stranding Delete alone on a second row at the widths where Edit still fits. That fixed the clipping but was rejected on the browser check for reading as a staircase: three labelled buttons on the left of line one, two pushed to the right of line two. The shipped fix hides each button's label below `sm` instead, so all six actions fit one row with the same shape as desktop. That had been the initially rejected option, because `display: none` text is dropped from the accessibility tree and so every button needs an explicit `aria-label` — Copy's tracks `copyStatus`, since the label is what confirms the copy, leaving the icon swap to `Check` as the visible confirmation exactly as `CopyItemButton` already does on cards. `FavoriteButton`'s `showLabel` is a prop rather than a class and so can't switch on a media query; it gained an optional `labelClassName` applied to the visible label, which the drawer passes `hidden sm:inline` to, so cards and the collection header are untouched, and its `aria-label` and `title` are now always set rather than only when icon-only, since a hidden label would otherwise leave the button unnamed. `PinButton` hides its label directly, its own comment already noting the drawer is its only caller. `flex-wrap` and the Edit/Delete wrapper were kept from the first attempt as a floor rather than reverted: six icon buttons need about 218px, which fits 375px but not a 320px phone's 192px, and if it ever wraps the pair goes together. The drawer's other bar, `ItemEditForm`'s Cancel and Save row, was checked and left alone — about 143px, so it never overflowed. No schema change, no migration, no action and no query; components only, so no tests were added and the suite stays at 353. Known gaps: the label hiding is per-call-site rather than a shared variant, so a future labelled button in this bar has to remember the pattern; `FavoriteButton`'s accessible name is now the descriptive "Add X to favorites" everywhere it is labelled, including the collection header where it used to be the visible "Favorite"; and the 320px case is only handled by wrapping, which would put the staircase back on a screen that narrow. Verified with tsc, eslint, the Vitest suite and next build, with `.sm\:inline` confirmed in the built CSS, and checked in the browser on both a snippet and a file item — the browser check is what rejected the first layout.
