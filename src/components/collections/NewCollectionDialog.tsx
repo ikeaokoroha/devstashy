@@ -96,18 +96,38 @@ function NewCollectionForm({ isSaving, startSaving, onCreated }: NewCollectionFo
   );
 }
 
-// The top bar's New Collection button and its dialog.
 interface NewCollectionDialogProps {
   size?: "default" | "lg";
   className?: string;
+  // Passing both switches the dialog to controlled, trigger-less mode.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 // A New Collection button and its dialog: the top bar's, which hides on a phone
-// behind the ⌘K search, or the /collections page header's, which doesn't.
-export function NewCollectionDialog({ size = "lg", className }: NewCollectionDialogProps) {
+// behind the create menu, or the /collections page header's, which doesn't.
+// Callers that open it from a dropdown menu item pass open/onOpenChange instead,
+// since a dialog rendered inside the menu would unmount the moment the menu
+// closes — see EditCollectionDialog.
+export function NewCollectionDialog({
+  size = "lg",
+  className,
+  open: controlledOpen,
+  onOpenChange,
+}: NewCollectionDialogProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [isSaving, startSaving] = useTransition();
+  const isControlled = controlledOpen !== undefined && onOpenChange !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+
+  function setOpen(nextOpen: boolean) {
+    if (isControlled) {
+      onOpenChange(nextOpen);
+    } else {
+      setUncontrolledOpen(nextOpen);
+    }
+  }
 
   function handleOpenChange(nextOpen: boolean) {
     // Escape or an outside click can't dismiss the dialog mid-save.
@@ -123,10 +143,12 @@ export function NewCollectionDialog({ size = "lg", className }: NewCollectionDia
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button variant="outline" size={size} className={className} />}>
-        <FolderPlus />
-        New Collection
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger render={<Button variant="outline" size={size} className={className} />}>
+          <FolderPlus />
+          New Collection
+        </DialogTrigger>
+      )}
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <NewCollectionForm
           isSaving={isSaving}
