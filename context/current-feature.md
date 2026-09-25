@@ -1,14 +1,16 @@
 # Current Feature
 
-<!-- Feature name and short description -->
+UI Review Quick Wins (fix) — the three highest-priority issues from the Playwright UI review: an invisible focus ring on cards, a top bar that overflows at 768px, and file row details breaking mid-value on mobile.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Card focus ring visible when tabbing: the overlay button/link's `focus-visible:ring-3` is clipped by Card's `overflow-hidden`, so draw it inset (OpenItemButton, CollectionCard)
+- Top bar fits at 768px: keep the mobile `+` CreateMenu up to `lg` and show the labelled New Collection / New Item buttons from `lg` up (TopBar)
+- File row size and date never wrap mid-value at 375px (FileRow)
 
 ## Notes
 

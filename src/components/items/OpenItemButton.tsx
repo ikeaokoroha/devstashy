@@ -24,7 +24,8 @@ export function OpenItemButton({ item, className }: OpenItemButtonProps) {
       aria-label={`Open ${item.title}`}
       onClick={() => openItem(item)}
       className={cn(
-        "absolute inset-0 rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+        // Inset, since Card's overflow-hidden clips a ring drawn outside it.
+        "absolute inset-0 rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset",
         className
       )}
     />

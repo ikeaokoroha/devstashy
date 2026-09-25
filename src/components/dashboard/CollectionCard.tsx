@@ -25,7 +25,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
       <Link
         href={`/collections/${collection.id}`}
         aria-label={`Open ${collection.name}`}
-        className="absolute inset-0 rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="absolute inset-0 rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
       />
 
       <div className="flex items-start gap-2">
