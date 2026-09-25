@@ -1,18 +1,31 @@
-# Current Feature
+# Current Feature: Homepage Mockup
 
-<!-- Feature name and short description -->
+A static marketing homepage prototype for DevStash, built as plain HTML/CSS/JS in `prototypes/homepage/` (`index.html`, `styles.css`, `script.js`) — outside the Next.js app.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Dark-theme page using the spec's item-type accent colors: snippet `#3b82f6`, prompt `#f59e0b`, command `#06b6d4`, note `#22c55e`, file `#64748b`, image `#ec4899`, url `#6366f1`.
+- Hero "chaos to order" visual in three parts: a "Your knowledge today..." chaos box (8 floating icons — Notion, GitHub, Slack, VS Code, browser tabs, terminal, text file, bookmark), a pulsing transform arrow, and a "...with DevStash" dashboard preview (sidebar nav plus a grid of cards with colored top borders).
+- Chaos icons animated with `requestAnimationFrame`: random drift, wall bouncing, subtle rotation and scale pulsing, and repulsion from the mouse cursor.
+- Fixed top nav (logo, Features/Pricing links, Sign In and Get Started buttons) that grows more opaque on scroll.
+- Hero text above the visual: "Stop Losing Your Developer Knowledge" with gradient text, a subheadline about scattered knowledge, and CTA buttons.
+- Features grid of 6 cards — Code Snippets, AI Prompts, Instant Search, Commands, Files & Docs, Collections — each in its item type's accent color.
+- AI section in two columns: a "Pro Feature" badge with a checklist of AI capabilities, and a code editor mockup demoing "AI Generated Tags".
+- Pricing section: Free ($0, 50 items, 3 collections) vs Pro ($8/mo, unlimited, AI features), Pro highlighted with a "Most Popular" badge, plus a monthly/yearly toggle for the $72 yearly option.
+- Closing CTA ("Ready to Organize Your Knowledge?") and a footer with logo, link columns and a copyright showing the current year.
+- Scroll-triggered fade-in for sections.
+- Responsive: chaos/arrow/dashboard stack vertically on mobile with the arrow rotated 90° to point down, and grids collapse to a single column.
 
 ## Notes
 
-<!-- Any extra notes -->
+- Spec: `context/features/homepage-mockup-spec.md`.
+- This is a standalone mockup, not part of the Next.js app — no React, Tailwind, shadcn, Prisma or auth involved, and nothing under `src/`.
+- The spec's palette deliberately differs from the app's type colors in `context/project-overview.md` (prompt amber not purple, command cyan not orange, note green not yellow, link indigo not emerald). The spec wins for this prototype.
+- No server actions or utilities under `src/`, so the Vitest suite is unaffected; verification is the browser plus keeping `npm run build`, lint and tests green (the prototype folder sits outside the app's compile paths).
 
 ## History
 
