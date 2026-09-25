@@ -137,6 +137,17 @@
   html {
     @apply font-sans;
     }
+  /* Anchor links on the marketing homepage, clearing its fixed nav. Scoped to
+     that page so the app's own scrolling is untouched. */
+  html:has([data-home]) {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5.5rem;
+    }
+  @media (prefers-reduced-motion: reduce) {
+    html:has([data-home]) {
+      scroll-behavior: auto;
+      }
+    }
 }
 
 /* Rendered Markdown for prompts and notes (MarkdownEditor's preview). */
@@ -183,5 +194,114 @@
     & th { @apply bg-muted/60 font-semibold; }
 
     & img { @apply max-w-full rounded-md; }
+  }
+}
+
+/* Marketing homepage (/) — the pieces a utility can't express: the hero glow,
+   the brand gradients and the two looping animations. */
+@keyframes arrow-pulse {
+  0%, 100% { opacity: 0.55; transform: translateX(-6px) scale(0.96); }
+  50% { opacity: 1; transform: translateX(6px) scale(1.04); }
+}
+
+/* The stacked layout needs its own keyframes: an animated transform beats a
+   static rotate, so the rotation has to live in every step. */
+@keyframes arrow-pulse-down {
+  0%, 100% { opacity: 0.55; transform: rotate(90deg) translateX(-6px) scale(0.96); }
+  50% { opacity: 1; transform: rotate(90deg) translateX(6px) scale(1.04); }
+}
+
+@keyframes brand-spark {
+  0%, 100% { opacity: 0.6; transform: scale(0.94) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.08) rotate(8deg); }
+}
+
+@layer components {
+  .home-glow {
+    background:
+      radial-gradient(
+        closest-side,
+        color-mix(in srgb, var(--color-type-prompt) 22%, transparent),
+        transparent
+      ),
+      radial-gradient(
+        closest-side at 30% 60%,
+        color-mix(in srgb, var(--color-type-snippet) 18%, transparent),
+        transparent
+      );
+  }
+
+  .brand-gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      100deg,
+      var(--color-type-snippet) 0%,
+      var(--color-type-prompt) 45%,
+      var(--color-type-image) 100%
+    );
+  }
+
+  /* Sits on a shadcn Button; the gradient covers the variant's background. */
+  .btn-brand {
+    @apply transition-[filter,box-shadow,transform];
+    background-image: linear-gradient(
+      135deg,
+      var(--color-type-snippet),
+      var(--color-type-prompt)
+    );
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--color-type-snippet) 30%, transparent);
+  }
+
+  .btn-brand:hover {
+    @apply brightness-110;
+    box-shadow: 0 14px 34px color-mix(in srgb, var(--color-type-prompt) 38%, transparent);
+  }
+
+  /* Scroll reveal. Hidden until the observer marks it; motion-reduce and the
+     no-JavaScript case both fall back to plain visible content. */
+  .reveal {
+    @apply translate-y-5 opacity-0 transition duration-700 ease-out;
+  }
+
+  .reveal.is-visible {
+    @apply translate-y-0 opacity-100;
+  }
+
+  .arrow-pulse {
+    animation: arrow-pulse-down 2.2s ease-in-out infinite;
+  }
+
+  @media (width >= 48rem) {
+    .arrow-pulse {
+      animation-name: arrow-pulse;
+    }
+  }
+
+  /* Static scatter for the hero's chaos icons: what shows before the script
+     runs, and the whole story when motion is reduced. The script's inline
+     transform takes over from there. Percentages are of the icon's own size,
+     which is what spreads them across the panel. */
+  .chaos-icon:nth-child(1) { transform: translate(12%, 14%) rotate(-8deg); }
+  .chaos-icon:nth-child(2) { transform: translate(180%, 40%) rotate(6deg); }
+  .chaos-icon:nth-child(3) { transform: translate(360%, 10%) rotate(-3deg); }
+  .chaos-icon:nth-child(4) { transform: translate(60%, 200%) rotate(10deg); }
+  .chaos-icon:nth-child(5) { transform: translate(250%, 175%) rotate(-6deg); }
+  .chaos-icon:nth-child(6) { transform: translate(400%, 230%) rotate(4deg); }
+  .chaos-icon:nth-child(7) { transform: translate(20%, 400%) rotate(-11deg); }
+  .chaos-icon:nth-child(8) { transform: translate(300%, 420%) rotate(7deg); }
+
+  .spark-pulse {
+    animation: brand-spark 2.6s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal {
+      @apply translate-y-0 opacity-100 transition-none;
+    }
+
+    .arrow-pulse,
+    .spark-pulse {
+      animation: none;
+    }
   }
 }
