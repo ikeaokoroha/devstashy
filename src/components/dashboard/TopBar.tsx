@@ -27,9 +27,11 @@ export function TopBar() {
         >
           <Star />
         </Button>
-        <CreateMenu className="sm:hidden" />
-        <NewCollectionDialog className="hidden sm:inline-flex" />
-        <NewItemDialog className="hidden sm:inline-flex" />
+        {/* Labelled buttons only from lg: below that they squeeze the search
+            box until it wraps and push New Item past the bar's padding. */}
+        <CreateMenu className="lg:hidden" />
+        <NewCollectionDialog className="hidden lg:inline-flex" />
+        <NewItemDialog className="hidden lg:inline-flex" />
       </div>
     </header>
   );

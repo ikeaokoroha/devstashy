@@ -49,7 +49,8 @@ export function FileRow({ item }: FileRowProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground @md:shrink-0">
+        {/* Wraps between size and date on a narrow row, never inside either. */}
+        <div className="flex flex-wrap items-center gap-x-1.5 whitespace-nowrap text-sm text-muted-foreground @md:shrink-0">
           {item.fileSize !== null && (
             <>
               <span>{formatFileSize(item.fileSize)}</span>
