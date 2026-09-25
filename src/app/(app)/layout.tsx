@@ -11,6 +11,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getSidebarCollections } from "@/lib/db/collections";
 import { getSystemItemTypes } from "@/lib/db/items";
 import { getEditorPreferences } from "@/lib/db/users";
+import { SIDEBAR_ICON_WIDTH } from "@/lib/sidebar";
 
 const SIDEBAR_FAVORITE_COLLECTIONS_LIMIT = 10;
 const SIDEBAR_RECENT_COLLECTIONS_LIMIT = 5;
@@ -41,24 +42,36 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   ]);
 
   return (
-    <SidebarProvider defaultOpen={defaultOpen} className="h-svh">
-      <AppSidebar itemTypes={itemTypes} collections={collections} user={{ name, email, image }} />
-      <SidebarInset className="min-w-0 overflow-hidden">
-        {/* All three providers wrap the top bar as well as the page: the command
-            palette's trigger lives there, selecting a result opens the same drawer
-            an item card does, and the editors inside both the drawer and the New
-            Item dialog read the editor settings. */}
-        <EditorPreferencesProvider preferences={editorPreferences}>
-          <ItemDrawerProvider>
-            <SearchProvider>
-              <TopBar />
-              <div className="min-h-0 flex-1 overflow-y-auto p-6 md:px-12 lg:px-16 xl:px-24">
-                {children}
-              </div>
-            </SearchProvider>
-          </ItemDrawerProvider>
-        </EditorPreferencesProvider>
-      </SidebarInset>
+    <SidebarProvider
+      defaultOpen={defaultOpen}
+      className="h-svh flex-col"
+      // The provider sets its width variables inline, so an override has to
+      // be inline too; a class would lose to it.
+      style={{ "--sidebar-width-icon": SIDEBAR_ICON_WIDTH } as React.CSSProperties}
+    >
+      {/* All three providers wrap the top bar as well as the page: the command
+          palette's trigger lives there, selecting a result opens the same drawer
+          an item card does, and the editors inside both the drawer and the New
+          Item dialog read the editor settings. None renders a DOM node, so the
+          flex layout below is unaffected. */}
+      <EditorPreferencesProvider preferences={editorPreferences}>
+        <ItemDrawerProvider>
+          <SearchProvider>
+            {/* Full width above the sidebar, which opens beneath it. */}
+            <TopBar />
+            {/* The sidebar and inset stay siblings: SidebarInset styles itself
+                off the sidebar as its peer. */}
+            <div className="flex min-h-0 flex-1">
+              <AppSidebar itemTypes={itemTypes} collections={collections} user={{ name, email, image }} />
+              <SidebarInset className="min-w-0 overflow-hidden">
+                <div className="min-h-0 flex-1 overflow-y-auto p-6 md:px-12 lg:px-16 xl:px-24">
+                  {children}
+                </div>
+              </SidebarInset>
+            </div>
+          </SearchProvider>
+        </ItemDrawerProvider>
+      </EditorPreferencesProvider>
     </SidebarProvider>
   );
 }

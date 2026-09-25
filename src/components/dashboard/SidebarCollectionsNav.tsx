@@ -66,7 +66,9 @@ interface SidebarCollectionsNavProps {
 
 export function SidebarCollectionsNav({ collections }: SidebarCollectionsNavProps) {
   return (
-    <SidebarCollapsibleGroup label="Collections">
+    // Hidden while collapsed to icons, where every row would be the same
+    // folder; AppSidebar shows a single Collections icon there instead.
+    <SidebarCollapsibleGroup label="Collections" className="group-data-[collapsible=icon]:hidden">
       <CollectionList heading="Favorites" collections={collections.favorites} />
       <CollectionList heading="Recent" collections={collections.recent} />
       <SidebarMenu>

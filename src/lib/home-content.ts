@@ -46,8 +46,9 @@ export interface HomePlan {
 }
 
 export const HOME_NAV_LINKS: HomeLink[] = [
-  { label: "Features", href: "#features" },
-  { label: "Pricing", href: "#pricing" },
+  // Rooted at / so the links also work from the auth pages, which share the nav.
+  { label: "Features", href: "/#features" },
+  { label: "Pricing", href: "/#pricing" },
 ];
 
 export const HERO_COPY = {

@@ -1,16 +1,22 @@
 import Link from "next/link";
 
 import { HomeContainer } from "@/components/home/HomeContainer";
-import { HomeLogo } from "@/components/home/HomeLogo";
 import { HomeNavShell } from "@/components/home/HomeNavShell";
+import { Logo } from "@/components/shared/Logo";
 import { Button } from "@/components/ui/button";
 import { HOME_NAV_LINKS } from "@/lib/home-content";
 
-export function HomeNav({ isSignedIn }: { isSignedIn: boolean }) {
+interface HomeNavProps {
+  isSignedIn: boolean;
+  /** `#top` on the homepage itself; `/` from the auth pages. */
+  logoHref?: string;
+}
+
+export function HomeNav({ isSignedIn, logoHref }: HomeNavProps) {
   return (
     <HomeNavShell>
       <HomeContainer className="flex h-full items-center gap-8">
-        <HomeLogo />
+        <Logo href={logoHref} />
 
         <nav
           aria-label="Main"

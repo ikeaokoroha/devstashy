@@ -1,18 +1,30 @@
-# Current Feature
+# Current Feature: Unified Branding
 
-<!-- Feature name and short description -->
+One logo and one set of navigation across the homepage, the auth pages and the signed-in app. Right now the homepage uses the cube mark with the "Dev/stashy" wordmark, the sidebar and auth pages use an older gradient Layers tile, the logo lives in the sidebar rather than the top bar, and nothing in the app links back to the homepage.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- **Shared Logo:** move HomeLogo to `src/components/shared/Logo.tsx` with an `href` prop (the homepage nav and footer keep `#top`), and remove the gradient Layers mark from AppSidebar and the (auth) layout.
+- **Full-width top bar:** TopBar spans the full width above the sidebar row in the (app) layout, in this order: logo, search, then star and create. Below `sm` the logo shows only the icon so the search box keeps its room.
+- **Sidebar beneath the top bar:** on desktop the sidebar opens and collapses below the top bar (`top-16`, height of the screen minus the bar), set through `className` on `Sidebar` without editing the generated `ui/sidebar.tsx`. The mobile sheet stays full height as an overlay.
+- **Icon strip on desktop (added after the browser checks):** from `md` up the sidebar uses `collapsible="icon"`, so closed it's a 3.5rem strip and open it's the full drawer — one element, never both. The strip holds the toggle on top, Dashboard, a Collections link (only while collapsed, since the open drawer lists collections), the type icons with hover tooltips, and the user's avatar at the bottom opening the account menu. The open drawer keeps its name/email footer, and its header reads "Navigation" on the left with the toggle on the right. Each section gets `px-3` while collapsed so the 2rem buttons sit centred with room around them.
+- **Hamburger on phones:** below `md` there's no rail; a hamburger in the top bar opens the full-height sheet.
+- **Home and dashboard navigation:** the top bar logo links to `/`, and a Dashboard entry, marked active on `/dashboard`, goes at the top of the sidebar nav, since the sidebar logo was the only link back to the dashboard.
+- **Homepage navbar on auth pages:** HomeNav renders in the (auth) layout on sign-in, register, forgot-password and reset-password. The layout checks the session so a signed-in visitor sees "Go to Dashboard". Both Sign In and Get Started stay on every auth page.
+- **Nav links work off the homepage:** HOME_NAV_LINKS become `/#features` and `/#pricing`.
+- **Auth layout spacing:** top padding so the fixed navbar never covers the form on short screens, and the old logo above the form is removed.
 
 ## Notes
 
-<!-- Any extra notes -->
+- Layout and components only: no schema change, no migration, no actions or utilities, so no new tests are expected and the suite should stay at 353.
+- The three providers in the (app) layout render no DOM, so TopBar can move above the sidebar row without changing what they wrap.
+- The homepage's smooth anchor scrolling is scoped through `html:has([data-home])`, so `/#features` from an auth page does a normal navigation and then jumps to the section.
+- Checking the session in the (auth) layout makes those pages dynamic, which they likely already are because they read search params.
+- The footer links reuse HOME_NAV_LINKS, so they pick up the `/#` form too, which is harmless on the homepage.
 
 ## History
 
