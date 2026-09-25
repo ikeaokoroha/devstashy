@@ -1,18 +1,45 @@
-# Current Feature
+# Current Feature: Drawer Actions Mobile Overflow (fix)
 
-<!-- Feature name and short description -->
+The item drawer's action bar overflows on a phone, pushing Delete off the right
+edge, so an item can't be deleted from the drawer on mobile.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Every action in the item drawer — Favorite, Pin, Copy, Download, Edit and Delete —
+  is visible and reachable on a 375px-wide screen.
+- Nothing changes at `sm` and up, where the row already fits on one line.
+- Delete never ends up stranded alone on its own row at any width.
 
 ## Notes
 
-<!-- Any extra notes -->
+- Cause: the drawer is `data-[side=right]:w-3/4` with `sm:max-w-sm` only from `sm` up
+  (`src/components/ui/sheet.tsx`), so on a 375px phone it is 281px wide, and the
+  action bar's `px-6` leaves about 233px of content width. The bar is
+  `flex items-center gap-1` with no wrapping, and Favorite, Pin, Copy and Edit are
+  labeled `sm` buttons that can't shrink below their text — together about 326px.
+  Delete is last and behind `ml-auto`, so the overflow pushes it off the right edge.
+  A file item is worse, since Download adds roughly another 78px.
+- First attempt, reverted on review: let the row wrap and put `ml-auto` on a wrapper
+  holding Edit and Delete. It fixed the clipping but read as a staircase — three
+  labelled buttons on the left of line one, two pushed to the right of line two.
+- Fix: hide each button's label below `sm` so all six fit on one row, keeping the
+  same shape as desktop. `display: none` text is dropped from the accessibility
+  tree, so every button needs an explicit `aria-label`; Copy's has to track its
+  status, since the label is what confirms the copy. `FavoriteButton`'s `showLabel`
+  is a prop rather than a class, so it takes a `labelClassName` the drawer passes
+  `hidden sm:inline` to — cards and the collection header are unaffected.
+  `PinButton` is drawer-only, so it hides its label directly.
+- `flex-wrap` stays as a floor for a very narrow screen: six icon buttons need about
+  218px, which fits the 233px at 375px but not a 320px phone's 192px. Edit and
+  Delete keep their wrapper so they'd wrap together if it ever came to that.
+- Components only: no schema change, no migration, no action and no query, so the
+  suite should stay at 353.
+- Found during the Mobile Create Menu browser check and deliberately deferred to its
+  own branch, since it is a pre-existing bug unrelated to that feature.
 
 ## History
 

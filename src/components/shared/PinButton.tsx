@@ -26,9 +26,18 @@ export function PinButton({ itemId, isPinned: serverValue }: PinButtonProps) {
   });
 
   return (
-    <Button variant="ghost" size="sm" aria-pressed={isPinned} onClick={toggle}>
+    <Button
+      variant="ghost"
+      size="sm"
+      aria-pressed={isPinned}
+      // Named here too: the label is hidden on a phone, where the drawer has no
+      // room for it, and display:none text is dropped from the accessibility tree.
+      aria-label="Pin"
+      title="Pin"
+      onClick={toggle}
+    >
       <Pin className={cn(isPinned && "fill-current")} />
-      Pin
+      <span className="hidden sm:inline">Pin</span>
     </Button>
   );
 }
