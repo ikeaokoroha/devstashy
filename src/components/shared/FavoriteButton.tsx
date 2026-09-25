@@ -31,6 +31,9 @@ interface FavoriteButtonProps {
   isFavorite: boolean;
   // Labelled in the item drawer and the collection header, icon only on a card.
   showLabel?: boolean;
+  // Applied to the visible label, so a caller can hide it at narrow widths while
+  // keeping the button's size. The accessible name doesn't depend on it.
+  labelClassName?: string;
   // Smaller where a card's row is shorter than a full button (see ItemCard).
   size?: "icon" | "icon-sm";
   className?: string;
@@ -46,6 +49,7 @@ export function FavoriteButton({
   name,
   isFavorite: serverValue,
   showLabel = false,
+  labelClassName,
   size = "icon",
   className,
 }: FavoriteButtonProps) {
@@ -64,10 +68,10 @@ export function FavoriteButton({
       variant="ghost"
       size={showLabel ? "sm" : size}
       aria-pressed={isFavorite}
-      // The visible "Favorite" text names the labelled button; an icon-only one
-      // needs the name and the direction spelled out.
-      aria-label={showLabel ? undefined : label}
-      title={showLabel ? undefined : label}
+      // Always spelled out, since a caller may hide the visible label responsively
+      // and display:none text is dropped from the accessibility tree.
+      aria-label={label}
+      title={label}
       onClick={toggle}
       className={cn(
         "relative z-10 shrink-0",
@@ -80,7 +84,7 @@ export function FavoriteButton({
     >
       <Star className={cn(isFavorite && "fill-yellow-400 text-yellow-400")} />
       {showLabel && (
-        <span className={cn(isFavorite && "text-yellow-400")}>Favorite</span>
+        <span className={cn(isFavorite && "text-yellow-400", labelClassName)}>Favorite</span>
       )}
     </Button>
   );
