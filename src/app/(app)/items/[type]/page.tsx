@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { ProTypeUpgrade } from "@/components/billing/ProTypeUpgrade";
 import { FileList } from "@/components/items/FileList";
 import { ImageGrid } from "@/components/items/ImageGrid";
 import { ItemGrid } from "@/components/items/ItemGrid";
@@ -41,8 +42,17 @@ export default async function ItemsByTypePage({
     notFound();
   }
 
-  const page = parsePageParam(pageParam);
+  const slug = getItemTypeSlug(typeName);
+  const label = capitalize(slug);
+
+  // Without Pro, the Files and Images pages are an upgrade screen instead, so
+  // the list query never runs.
   const { id: userId, isPro } = await requireSessionUser();
+  if (!canUseItemType(isPro, typeName)) {
+    return <ProTypeUpgrade typeName={typeName} label={label} />;
+  }
+
+  const page = parsePageParam(pageParam);
   const { rows: items, total } = await getItemsByType(userId, typeName, page);
 
   const pageCount = getPageCount(total, ITEMS_PER_PAGE);
@@ -51,8 +61,6 @@ export default async function ItemsByTypePage({
   }
 
   const { icon: Icon, textClass, bgClass } = getItemTypeStyle(typeName);
-  const slug = getItemTypeSlug(typeName);
-  const label = capitalize(slug);
   const emptyMessage = `No ${label.toLowerCase()} yet.`;
 
   return (
@@ -71,7 +79,7 @@ export default async function ItemsByTypePage({
             </p>
           </div>
         </div>
-        {isCreatableItemType(typeName) && canUseItemType(isPro, typeName) && (
+        {isCreatableItemType(typeName) && (
           <NewItemDialog
             defaultType={typeName}
             label={`New ${capitalize(typeName)}`}
