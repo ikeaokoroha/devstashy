@@ -1,18 +1,23 @@
-# Current Feature
+# Current Feature: Pro Type Upgrade Prompt
 
-<!-- Feature name and short description -->
+Free users can't browse /items/files or /items/images; visiting either shows an upgrade screen instead of the list.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- When the user lacks Pro access, /items/files and /items/images render an upgrade screen (type icon, name, PRO badge, a short explanation) instead of the list
+- Two buttons, "Upgrade $8/month" and "Upgrade $72/yr (save 25%)", go straight to Stripe Checkout through the existing UpgradeForm / startCheckout action (labels and centering added as optional props, settings page unchanged)
+- The check runs before the list query, so no items are loaded for a locked page
+- Pro users, and everyone while PRO_GATING=false, see the normal page with the New File / New Image button
+- Reuse the existing isPro / canUseItemType check; no new queries or actions
 
 ## Notes
 
-<!-- Any extra notes -->
+- First built as an upgrade button plus a note in the page header; replaced on request with the full upgrade screen.
+- The New Item dialog already greys out File and Image with a PRO badge and an "Upgrade to Pro" link to /settings#billing.
 
 ## History
 
