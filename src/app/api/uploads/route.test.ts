@@ -3,8 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/uploads/route";
 import { auth } from "@/auth";
 import { buildObjectKey, getPublicFileUrl, isR2Configured, presignUpload } from "@/lib/r2";
+import { PLAN_ERRORS } from "@/lib/usage-limits";
+
+// Mutable so a case can switch gating off.
+const flags = vi.hoisted(() => ({ PRO_GATING_ENABLED: true }));
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/feature-flags", () => ({
+  get PRO_GATING_ENABLED() {
+    return flags.PRO_GATING_ENABLED;
+  },
+}));
 vi.mock("@/lib/r2", () => ({
   isR2Configured: vi.fn(),
   buildObjectKey: vi.fn(),
@@ -33,7 +42,8 @@ const validBody = {
 
 describe("POST /api/uploads", () => {
   beforeEach(() => {
-    mockAuth.mockResolvedValue({ user: { id: "session-user" } });
+    flags.PRO_GATING_ENABLED = true;
+    mockAuth.mockResolvedValue({ user: { id: "session-user", isPro: true } });
     vi.mocked(isR2Configured).mockReturnValue(true);
     vi.mocked(buildObjectKey).mockReturnValue("session-user/abc.png");
     vi.mocked(getPublicFileUrl).mockReturnValue("https://pub-test.r2.dev/session-user/abc.png");
@@ -47,6 +57,28 @@ describe("POST /api/uploads", () => {
 
     expect(response.status).toBe(401);
     expect(presignUpload).not.toHaveBeenCalled();
+  });
+
+  // Uploads cost R2 storage, so a Free user's crafted request is refused
+  // before anything is validated or signed.
+  it("returns 403 on the Free plan and signs nothing", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "session-user", isPro: false } });
+
+    const response = await callPost(validBody);
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ success: false, error: PLAN_ERRORS.uploads });
+    expect(presignUpload).not.toHaveBeenCalled();
+  });
+
+  it("signs an upload on the Free plan with gating off", async () => {
+    flags.PRO_GATING_ENABLED = false;
+    mockAuth.mockResolvedValue({ user: { id: "session-user", isPro: false } });
+
+    const response = await callPost(validBody);
+
+    expect(response.status).toBe(200);
+    expect(presignUpload).toHaveBeenCalled();
   });
 
   it("returns 503 when R2 isn't configured", async () => {

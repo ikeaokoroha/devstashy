@@ -2,12 +2,15 @@
 
 import { useState, useTransition } from "react";
 import type { SubmitEvent, TransitionStartFunction } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { createItem } from "@/actions/items";
 import { FormField } from "@/components/auth/FormField";
+import { usePlan } from "@/components/billing/PlanProvider";
+import { ProBadge } from "@/components/shared/ProBadge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { isFileItemType } from "@/lib/file-upload";
-import { getItemTypeStyle } from "@/lib/item-types";
+import { getItemTypeStyle, PRO_ITEM_TYPES } from "@/lib/item-types";
 import {
   CREATABLE_ITEM_TYPES,
   getEditableFields,
@@ -43,10 +46,13 @@ type FieldErrors = Partial<Record<CreateItemField, string>>;
 interface TypePickerProps {
   value: CreatableItemType;
   onChange: (type: CreatableItemType) => void;
+  // From the server-computed plan; the File and Image types need Pro.
+  hasProAccess: boolean;
 }
 
 // One toggle button per type, with the type's colored icon as in the sidebar.
-function TypePicker({ value, onChange }: TypePickerProps) {
+// Without Pro, the Pro types stay visible but disabled, with the sidebar's badge.
+function TypePicker({ value, onChange, hasProAccess }: TypePickerProps) {
   return (
     <div className="grid gap-2">
       <Label id="new-item-type">Type</Label>
@@ -58,26 +64,45 @@ function TypePicker({ value, onChange }: TypePickerProps) {
         {CREATABLE_ITEM_TYPES.map((type) => {
           const { icon: Icon, textClass, bgClass } = getItemTypeStyle(type);
           const selected = type === value;
+          const locked = !hasProAccess && PRO_ITEM_TYPES.includes(type);
           return (
             <button
               key={type}
               type="button"
               role="radio"
               aria-checked={selected}
+              disabled={locked}
               onClick={() => onChange(type)}
               className={cn(
                 "inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-medium capitalize transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-3.5 [&_svg]:shrink-0",
                 selected
                   ? ["border-current", textClass, bgClass]
-                  : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                  : locked
+                    ? "cursor-not-allowed border-border text-muted-foreground opacity-50"
+                    : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
               <Icon className={textClass} />
               {type}
+              {locked && <ProBadge />}
             </button>
           );
         })}
       </div>
+      {!hasProAccess && (
+        <p className="text-xs text-muted-foreground">
+          File and image items are a Pro feature.{" "}
+          {/* Closes the dialog as it navigates; it lives in the shell, so it
+              would otherwise stay open over the settings page. */}
+          <DialogClose
+            nativeButton={false}
+            render={<Link href="/settings#billing" />}
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            Upgrade to Pro
+          </DialogClose>
+        </p>
+      )}
     </div>
   );
 }
@@ -91,7 +116,12 @@ interface NewItemFormProps {
 
 // Unmounted whenever the dialog closes, so each open starts with a blank form.
 function NewItemForm({ defaultType, isSaving, startSaving, onCreated }: NewItemFormProps) {
-  const [type, setType] = useState<CreatableItemType>(defaultType);
+  const { hasProAccess } = usePlan();
+  // A Pro type page's "New File" button is hidden without Pro, but a stale
+  // default still falls back to one the picker can actually select.
+  const [type, setType] = useState<CreatableItemType>(
+    hasProAccess || !PRO_ITEM_TYPES.includes(defaultType) ? defaultType : "snippet"
+  );
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [content, setContent] = useState("");
@@ -147,7 +177,7 @@ function NewItemForm({ defaultType, isSaving, startSaving, onCreated }: NewItemF
         <DialogDescription>Pick a type, then fill in the details.</DialogDescription>
       </DialogHeader>
 
-      <TypePicker value={type} onChange={setType} />
+      <TypePicker value={type} onChange={setType} hasProAccess={hasProAccess} />
       <FormField
         name="title"
         label="Title"

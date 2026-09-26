@@ -16,8 +16,9 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  // Public page: the session only decides what the nav offers.
+  // Public page: the session only decides what the nav and Go Pro offer.
   const session = await auth();
+  const isSignedIn = Boolean(session?.user);
 
   return (
     <div data-home className="flex flex-1 flex-col">
@@ -28,13 +29,13 @@ export default async function HomePage() {
         Skip to content
       </a>
 
-      <HomeNav isSignedIn={Boolean(session?.user)} />
+      <HomeNav isSignedIn={isSignedIn} />
 
       <main id="main" className="flex-1">
         <Hero />
         <FeatureCards />
         <AiSection />
-        <PricingSection />
+        <PricingSection isSignedIn={isSignedIn} />
         <FinalCta />
       </main>
 

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { fieldErrorResult } from "@/lib/action-errors";
 import {
+  countItems,
   createItem as createItemQuery,
   deleteItem as deleteItemQuery,
   setItemFavorite,
@@ -20,7 +21,8 @@ import {
   type UpdateItemInput,
 } from "@/lib/item-validation";
 import { deleteObject, getOwnedObjectKeyFromUrl } from "@/lib/r2";
-import { requireUserId } from "@/lib/session";
+import { requireSessionUser, requireUserId } from "@/lib/session";
+import { canUseItemType, FREE_ITEM_LIMIT, isOverLimit, PLAN_ERRORS } from "@/lib/usage-limits";
 import type { ActionResult } from "@/types/actions";
 import type { ItemDetail } from "@/types/items";
 
@@ -38,11 +40,15 @@ const itemIdSchema = z.string().min(1);
 
 // Saves the New Item dialog for the signed-in user.
 export async function createItem(data: CreateItemInput): Promise<ActionResult<CreateItemResult>> {
-  const userId = await requireUserId();
+  const { id: userId, isPro } = await requireSessionUser();
 
   const parsed = createItemSchema.safeParse(data);
   if (!parsed.success) {
     return fieldErrorResult<CreateItemField>(parsed.error);
+  }
+
+  if (!canUseItemType(isPro, parsed.data.type)) {
+    return { success: false, error: PLAN_ERRORS.proType };
   }
 
   // The file URL arrives from the browser, so it's only trusted once it's been
@@ -63,6 +69,11 @@ export async function createItem(data: CreateItemInput): Promise<ActionResult<Cr
   }
 
   try {
+    // Only creates are limited; edit and delete never are, so a user over the
+    // limit (e.g. after a downgrade) can always get back under it.
+    if (isOverLimit(isPro, await countItems(userId), FREE_ITEM_LIMIT)) {
+      return { success: false, error: PLAN_ERRORS.itemLimit };
+    }
     const id = await createItemQuery(userId, parsed.data);
     if (!id) {
       return { success: false, error: "That item type isn't available." };

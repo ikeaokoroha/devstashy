@@ -14,7 +14,8 @@ import {
   parsePageParam,
   ITEMS_PER_PAGE,
 } from "@/lib/pagination";
-import { requireUserId } from "@/lib/session";
+import { requireSessionUser } from "@/lib/session";
+import { canUseItemType } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
 import {
   getItemTypeNameFromSlug,
@@ -41,7 +42,7 @@ export default async function ItemsByTypePage({
   }
 
   const page = parsePageParam(pageParam);
-  const userId = await requireUserId();
+  const { id: userId, isPro } = await requireSessionUser();
   const { rows: items, total } = await getItemsByType(userId, typeName, page);
 
   const pageCount = getPageCount(total, ITEMS_PER_PAGE);
@@ -70,7 +71,7 @@ export default async function ItemsByTypePage({
             </p>
           </div>
         </div>
-        {isCreatableItemType(typeName) && (
+        {isCreatableItemType(typeName) && canUseItemType(isPro, typeName) && (
           <NewItemDialog
             defaultType={typeName}
             label={`New ${capitalize(typeName)}`}

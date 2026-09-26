@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { validateUpload } from "@/lib/file-upload";
 import { buildObjectKey, getPublicFileUrl, isR2Configured, presignUpload } from "@/lib/r2";
+import { hasProAccess, PLAN_ERRORS } from "@/lib/usage-limits";
 
 // Long file names are kept for display but capped so one can't bloat every row.
 const presignSchema = z.object({
@@ -24,6 +25,12 @@ export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return errorResponse("Unauthorized", 401);
+  }
+
+  // Uploads are what cost R2 storage, so this is the gate that matters most;
+  // the item type check in createItem only stops the row being saved.
+  if (!hasProAccess(session.user.isPro)) {
+    return errorResponse(PLAN_ERRORS.uploads, 403);
   }
 
   if (!isR2Configured()) {

@@ -5,11 +5,18 @@ import { z } from "zod";
 import { signOut } from "@/auth";
 import { SIGN_IN_PATH } from "@/auth.config";
 import { changePasswordSchema } from "@/lib/auth-validation";
+import { getBillingUser } from "@/lib/db/users";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { DELETE_CONFIRMATION } from "@/lib/profile";
 import { requireUserId } from "@/lib/session";
+import { getStripe } from "@/lib/stripe";
 import type { ActionResult } from "@/types/actions";
+
+const CANCEL_FAILED =
+  "Couldn't cancel your subscription, so your account wasn't deleted. Please try again.";
+
+const ENDED_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"]);
 
 type ChangePasswordField = "currentPassword" | "password" | "confirmPassword";
 
@@ -75,7 +82,9 @@ export async function changePassword(
 }
 
 // Every row the user owns cascades from User, so one delete clears their items,
-// collections, custom types, OAuth accounts and sessions with it.
+// collections, custom types, OAuth accounts and sessions with it. A live
+// subscription is canceled first, so a deleted account can never keep being
+// billed; the Stripe customer and its invoices are kept.
 export async function deleteAccount(
   _previous: ActionResult | null,
   formData: FormData,
@@ -84,6 +93,25 @@ export async function deleteAccount(
 
   if (formData.get("confirmation") !== DELETE_CONFIRMATION) {
     return { success: false, error: `Type ${DELETE_CONFIRMATION} to confirm.` };
+  }
+
+  try {
+    const billing = await getBillingUser(userId);
+    if (billing?.stripeSubscriptionId) {
+      const stripe = getStripe();
+      if (!stripe) {
+        return { success: false, error: CANCEL_FAILED };
+      }
+      // A missed webhook can leave an already-ended subscription stored, and
+      // canceling that again is an error that would block the delete for good.
+      const subscription = await stripe.subscriptions.retrieve(billing.stripeSubscriptionId);
+      if (!ENDED_SUBSCRIPTION_STATUSES.has(subscription.status)) {
+        await stripe.subscriptions.cancel(subscription.id);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to cancel subscription before deleting account", error);
+    return { success: false, error: CANCEL_FAILED };
   }
 
   try {

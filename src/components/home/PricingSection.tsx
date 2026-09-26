@@ -13,6 +13,7 @@ import {
   FREE_PLAN,
   PRICING_COPY,
   PRO_PLAN,
+  SIGNED_IN_PRO_HREF,
   type HomePlan,
 } from "@/lib/home-content";
 
@@ -71,7 +72,13 @@ function PlanCard({
   );
 }
 
-export function PricingSection() {
+interface PricingSectionProps {
+  isSignedIn: boolean;
+}
+
+export function PricingSection({ isSignedIn }: PricingSectionProps) {
+  const proPlan = isSignedIn ? { ...PRO_PLAN, href: SIGNED_IN_PRO_HREF } : PRO_PLAN;
+
   return (
     <section id="pricing" className="scroll-mt-24 py-18 md:py-24">
       <BillingPeriodProvider>
@@ -106,7 +113,7 @@ export function PricingSection() {
             </Reveal>
 
             <Reveal className="h-full delay-75">
-              <PlanCard plan={PRO_PLAN} price={<ProPrice />} highlighted />
+              <PlanCard plan={proPlan} price={<ProPrice />} highlighted />
             </Reveal>
           </div>
         </HomeContainer>
