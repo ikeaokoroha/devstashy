@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  countItems,
   createItem,
   deleteItem,
   getItemDetail,
@@ -670,5 +671,14 @@ describe("getFavoriteItems", () => {
         itemType: { id: "type-1", name: "snippet" },
       },
     ]);
+  });
+});
+
+describe("countItems", () => {
+  it("counts the user's items", async () => {
+    vi.mocked(prisma.item.count).mockResolvedValue(12 as never);
+
+    expect(await countItems("user-1")).toBe(12);
+    expect(prisma.item.count).toHaveBeenCalledWith({ where: { userId: "user-1" } });
   });
 });

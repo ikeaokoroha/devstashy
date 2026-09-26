@@ -53,6 +53,11 @@ export async function getItemStats(userId: string): Promise<ItemStats> {
   return { totalItems, favoriteItems };
 }
 
+// The user's item total alone, for checking the Free-plan limit before a create.
+export async function countItems(userId: string): Promise<number> {
+  return prisma.item.count({ where: { userId } });
+}
+
 // System types with the number of the user's items of each, in spec display order.
 export async function getSystemItemTypes(userId: string): Promise<ItemTypeWithCount[]> {
   const types = await prisma.itemType.findMany({

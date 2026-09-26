@@ -23,10 +23,13 @@ export default {
   pages: { signIn: SIGN_IN_PATH },
   callbacks: {
     // With the JWT strategy the token's `sub` holds the user's database id.
+    // isPro is set by the jwt callback in auth.ts; the proxy's instance has
+    // none, so it reads false there.
     session({ session, token }) {
       if (token.sub) {
         session.user.id = token.sub;
       }
+      session.user.isPro = token.isPro ?? false;
       return session;
     },
   },

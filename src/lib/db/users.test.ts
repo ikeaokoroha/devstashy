@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { getEditorPreferences, updateEditorPreferences } from "@/lib/db/users";
+import {
+  activateSubscription,
+  deactivateSubscription,
+  getBillingUser,
+  getEditorPreferences,
+  setStripeCustomerId,
+  updateEditorPreferences,
+} from "@/lib/db/users";
 import { DEFAULT_EDITOR_PREFERENCES } from "@/lib/editor-preferences";
 import { prisma } from "@/lib/prisma";
 
@@ -82,5 +89,92 @@ describe("updateEditorPreferences", () => {
     vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 0 } as never);
 
     expect(await updateEditorPreferences("user-1", preferences)).toBe(false);
+  });
+});
+
+describe("getBillingUser", () => {
+  it("selects the billing fields, for the given user", async () => {
+    const billingUser = {
+      id: "user-1",
+      email: "demo@devstash.io",
+      name: "Demo",
+      isPro: false,
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+    };
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(billingUser as never);
+
+    expect(await getBillingUser("user-1")).toEqual(billingUser);
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isPro: true,
+        stripeCustomerId: true,
+        stripeSubscriptionId: true,
+      },
+    });
+  });
+
+  it("returns null when the row is gone", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never);
+
+    expect(await getBillingUser("user-1")).toBeNull();
+  });
+});
+
+describe("setStripeCustomerId", () => {
+  it("only fills an empty column", async () => {
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 } as never);
+
+    expect(await setStripeCustomerId("user-1", "cus_123")).toBe(true);
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { id: "user-1", stripeCustomerId: null },
+      data: { stripeCustomerId: "cus_123" },
+    });
+  });
+
+  it("is false when a customer is already stored", async () => {
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 0 } as never);
+
+    expect(await setStripeCustomerId("user-1", "cus_123")).toBe(false);
+  });
+});
+
+describe("activateSubscription", () => {
+  it("grants Pro and stores the subscription, matched by customer", async () => {
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 } as never);
+
+    expect(await activateSubscription("cus_123", "sub_123")).toBe(true);
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { stripeCustomerId: "cus_123" },
+      data: { isPro: true, stripeSubscriptionId: "sub_123" },
+    });
+  });
+
+  it("is a quiet false for an unknown customer", async () => {
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 0 } as never);
+
+    expect(await activateSubscription("cus_unknown", "sub_123")).toBe(false);
+  });
+});
+
+describe("deactivateSubscription", () => {
+  it("drops Pro, scoped to the customer's current subscription", async () => {
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 } as never);
+
+    expect(await deactivateSubscription("cus_123", "sub_123")).toBe(true);
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { stripeCustomerId: "cus_123", stripeSubscriptionId: "sub_123" },
+      data: { isPro: false, stripeSubscriptionId: null },
+    });
+  });
+
+  it("is false for an old, replaced subscription", async () => {
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 0 } as never);
+
+    expect(await deactivateSubscription("cus_123", "sub_old")).toBe(false);
   });
 });

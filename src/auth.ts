@@ -62,7 +62,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   ...authConfig,
-  providers: authConfig.providers.map((provider) =>
+  callbacks: {
+    ...authConfig.callbacks,
+    // Re-reads isPro on every auth() so a webhook's change reaches the session
+    // on the next request; trigger === "update" doesn't fire for server-side
+    // changes. Lives here rather than in auth.config.ts so the proxy, which
+    // shares that config, never loads Prisma.
+    async jwt({ token, user }) {
+      if (user?.id) {
+        token.sub = user.id;
+      }
+      if (token.sub) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { isPro: true },
+        });
+        token.isPro = dbUser?.isPro ?? false;
+      }
+      return token;
+    },
+  },
+  providers:authConfig.providers.map((provider) =>
     typeof provider !== "function" && provider.id === "credentials"
       ? Credentials({ credentials: CREDENTIALS_FIELDS, authorize: authorizeCredentials })
       : provider,
