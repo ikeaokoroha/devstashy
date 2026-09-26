@@ -12,12 +12,14 @@ import {
   type UpdateCollectionInput,
 } from "@/lib/collection-validation";
 import {
+  countCollections,
   createCollection as createCollectionQuery,
   deleteCollection as deleteCollectionQuery,
   setCollectionFavorite,
   updateCollection as updateCollectionQuery,
 } from "@/lib/db/collections";
-import { requireUserId } from "@/lib/session";
+import { requireSessionUser, requireUserId } from "@/lib/session";
+import { FREE_COLLECTION_LIMIT, isOverLimit, PLAN_ERRORS } from "@/lib/usage-limits";
 import type { ActionResult } from "@/types/actions";
 
 const collectionIdSchema = z.string().min(1);
@@ -37,7 +39,7 @@ interface UpdateCollectionResult {
 export async function createCollection(
   data: CreateCollectionInput
 ): Promise<ActionResult<CreateCollectionResult>> {
-  const userId = await requireUserId();
+  const { id: userId, isPro } = await requireSessionUser();
 
   const parsed = createCollectionSchema.safeParse(data);
   if (!parsed.success) {
@@ -45,6 +47,9 @@ export async function createCollection(
   }
 
   try {
+    if (isOverLimit(isPro, await countCollections(userId), FREE_COLLECTION_LIMIT)) {
+      return { success: false, error: PLAN_ERRORS.collectionLimit };
+    }
     const id = await createCollectionQuery(userId, parsed.data);
     return { success: true, data: { id } };
   } catch (error) {

@@ -1,18 +1,42 @@
-# Current Feature
+# Current Feature: Stripe Integration Phase 2 — Integration & UI
 
-<!-- Feature name and short description -->
+Turn Phase 1's infrastructure into working billing: Stripe-hosted Checkout to upgrade, the Customer Portal to manage, a signed webhook keeping `User.isPro` in sync, and Free-plan limits enforced on the server and mirrored in the UI behind the `PRO_GATING` flag (off in development).
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- `src/lib/billing.ts`: `syncSubscription` (re-retrieves the subscription on every event instead of trusting the payload, so duplicate/out-of-order events are idempotent), `handleStripeEvent`, `syncCheckoutSession` (checks `client_reference_id`), `ensureStripeCustomer` (idempotency key, race fallback) (§5.3)
+- `POST /api/webhooks/stripe`: raw-body `constructEvent`; 503 unconfigured, 400 bad/missing signature, 500 on handler failure so Stripe retries (§5.4)
+- `GET /api/billing/checkout-return` as Checkout's `success_url`: syncs eagerly, logs on failure, always redirects to `/settings?checkout=success` so the user lands already Pro even before the webhook (§5.5)
+- `src/actions/billing.ts`: `startCheckout` (opens the portal instead when already subscribed) and `openBillingPortal`, `useActionState` signature, `redirect()` outside the try (§5.6)
+- `BillingCard` on `/settings` (`id="billing"`): Free shows usage ("12 / 50 items"), Pro features from `PRO_PLAN.features` and upgrade buttons; Pro shows a badge and manage button; plus the `checkout` success/canceled banner (§5.7)
+- `UpgradeForm` / `ManageBillingForm` client forms over the two actions, errors via `FormMessage`, buttons disabled while pending
+- `PlanProvider` (`src/components/billing`): `{ isPro, hasProAccess }` context computed on the server, wrapping the `(app)` layout (§5.8)
+- Server-side gating: `createItem` uses `requireSessionUser()`, rejects Pro types with `PLAN_ERRORS.proType` and the 50-item limit inside the try (§6.6); `createCollection` checks the 3-collection limit (§6.7); `/api/uploads` returns 403 with `PLAN_ERRORS.uploads` (§6.8). Edit, delete and downloads never gated
+- `deleteAccount` cancels the subscription first and refuses the delete if Stripe fails or is unconfigured while a subscription id is stored; the Stripe Customer is kept (§6.9)
+- `/settings` page: await `searchParams` for the banner; `Promise.all` of profile, billing user and both stats queries; `BillingCard` between `EditorPreferencesCard` and `AccountActions`; subtitle "Manage your account and plan" (§6.10)
+- UI mirrors: `NewItemDialog` disables File/Image with the outline PRO badge and an "Upgrade to Pro" link when `!hasProAccess`, a Pro `defaultType` falling back to `snippet` (§6.11); `/items/[type]` shows "New File"/"New Image" only when `canUseItemType`
+- Homepage pricing: Pro card links to `SIGNED_IN_PRO_HREF = "/settings#billing"` when signed in, `/register` otherwise
+- Tests: new `billing.test.ts`, webhook route, checkout-return route and `actions/billing.test.ts` (§5.9); existing `items`, `collections`, `uploads/route` and `profile` tests gain `requireSessionUser`/`isPro` mocks plus gating and cancel cases (§6.12). Stripe mocked through `@/lib/stripe`, `redirect` mocked to throw a sentinel
+- `npm run test:run`, typecheck, lint and build all pass
 
 ## Notes
 
-<!-- Any extra notes -->
+- Full design and code sketches: `docs/stripe-integration-plan.md` (§2, §4, §5.3–5.9, §6.6–6.12, §7, §8, §9 steps 4–9, §10). Verify current Stripe Checkout, Billing Portal and webhook APIs through Context7.
+- Read the webhook body with `request.text()`, never JSON — the signature covers the exact bytes.
+- `deactivateSubscription` is scoped to the stored subscription id, so a late `deleted` event for an old subscription can't revoke a resubscribed user.
+- Price ids resolve on the server from the interval; the browser never sends a price id.
+- `redirect()` throws to signal, so it stays outside try/catch in the actions.
+- Client components read `usePlan()` and never call `hasProAccess()` — the flag reads as on in a client bundle.
+- The Customer Portal needs a saved configuration in the Dashboard or portal sessions fail.
+- `APP_URL` is unset on Vercel and `getAppUrl()` throws in production without it, so billing is blocked in production until it's set.
+- Count-then-create can overshoot a limit by one or two under concurrent requests; accepted (§2.3).
+- New env: `STRIPE_WEBHOOK_SECRET` (the `whsec_…` printed by `stripe listen`; restart dev after setting). Production on Vercel, then redeploy: live `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, both live price ids, `PRO_GATING=true`, `APP_URL` (§7.2).
+- Stripe setup (test mode): both prices recurring USD $8/month and $72/year on one product; Customer Portal configured and saved (payment method, invoices, cancel at period end, switch between both prices) (§7.1). Local webhooks: `stripe listen --forward-to localhost:3000/api/webhooks/stripe --events checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,customer.subscription.paused,customer.subscription.resumed`.
+- Manual checklist (§8), with `stripe listen` running and `PRO_GATING=true` temporarily in `.env`: 51st item / 4th collection show the limit toast while edit and delete still work; File/Image disabled, no "New File" button, crafted `POST /api/uploads` → 403; upgrade with `4242 4242 4242 4242` lands on `/settings?checkout=success` already Pro even with `stripe listen` stopped; webhook events log 200 and `stripe events resend` changes nothing; upgrading again while Pro opens the portal; portal monthly → yearly keeps Pro, cancel at period end + test clock drops to Free with data intact; deleting a Pro account cancels the subscription and the follow-up webhook is a 200 no-op; without `STRIPE_SECRET_KEY`, "Billing isn't available right now." and a 503 webhook with no crash. Reset `PRO_GATING=false` afterwards.
 
 ## History
 

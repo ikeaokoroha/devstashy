@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SIGN_IN_PATH } from "@/auth.config";
+import { PlanProvider } from "@/components/billing/PlanProvider";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { EditorPreferencesProvider } from "@/components/editor/EditorPreferencesProvider";
@@ -12,6 +13,7 @@ import { getSystemItemTypes } from "@/lib/db/items";
 import { getEditorPreferences } from "@/lib/db/users";
 import { getSession } from "@/lib/session";
 import { SIDEBAR_ICON_WIDTH } from "@/lib/sidebar";
+import { hasProAccess } from "@/lib/usage-limits";
 
 const SIDEBAR_FAVORITE_COLLECTIONS_LIMIT = 10;
 const SIDEBAR_RECENT_COLLECTIONS_LIMIT = 5;
@@ -30,7 +32,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     redirect(SIGN_IN_PATH);
   }
 
-  const { id: userId, name, email, image } = session.user;
+  const { id: userId, name, email, image, isPro } = session.user;
 
   const [itemTypes, collections, editorPreferences] = await Promise.all([
     getSystemItemTypes(userId),
@@ -50,29 +52,32 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       // be inline too; a class would lose to it.
       style={{ "--sidebar-width-icon": SIDEBAR_ICON_WIDTH } as React.CSSProperties}
     >
-      {/* All three providers wrap the top bar as well as the page: the command
+      {/* The providers wrap the top bar as well as the page: the command
           palette's trigger lives there, selecting a result opens the same drawer
-          an item card does, and the editors inside both the drawer and the New
-          Item dialog read the editor settings. None renders a DOM node, so the
-          flex layout below is unaffected. */}
-      <EditorPreferencesProvider preferences={editorPreferences}>
-        <ItemDrawerProvider>
-          <SearchProvider>
-            {/* Full width above the sidebar, which opens beneath it. */}
-            <TopBar />
-            {/* The sidebar and inset stay siblings: SidebarInset styles itself
-                off the sidebar as its peer. */}
-            <div className="flex min-h-0 flex-1">
-              <AppSidebar itemTypes={itemTypes} collections={collections} user={{ name, email, image }} />
-              <SidebarInset className="min-w-0 overflow-hidden">
-                <div className="min-h-0 flex-1 overflow-y-auto p-6 md:px-12 lg:px-16 xl:px-24">
-                  {children}
-                </div>
-              </SidebarInset>
-            </div>
-          </SearchProvider>
-        </ItemDrawerProvider>
-      </EditorPreferencesProvider>
+          an item card does, the editors inside both the drawer and the New Item
+          dialog read the editor settings, and that dialog's type picker reads
+          the plan. None renders a DOM node, so the flex layout below is
+          unaffected. */}
+      <PlanProvider value={{ isPro, hasProAccess: hasProAccess(isPro) }}>
+        <EditorPreferencesProvider preferences={editorPreferences}>
+          <ItemDrawerProvider>
+            <SearchProvider>
+              {/* Full width above the sidebar, which opens beneath it. */}
+              <TopBar />
+              {/* The sidebar and inset stay siblings: SidebarInset styles itself
+                  off the sidebar as its peer. */}
+              <div className="flex min-h-0 flex-1">
+                <AppSidebar itemTypes={itemTypes} collections={collections} user={{ name, email, image }} />
+                <SidebarInset className="min-w-0 overflow-hidden">
+                  <div className="min-h-0 flex-1 overflow-y-auto p-6 md:px-12 lg:px-16 xl:px-24">
+                    {children}
+                  </div>
+                </SidebarInset>
+              </div>
+            </SearchProvider>
+          </ItemDrawerProvider>
+        </EditorPreferencesProvider>
+      </PlanProvider>
     </SidebarProvider>
   );
 }

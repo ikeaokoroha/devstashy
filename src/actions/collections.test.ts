@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createCollection,
@@ -7,19 +7,40 @@ import {
   updateCollection,
 } from "@/actions/collections";
 import {
+  countCollections,
   createCollection as createCollectionQuery,
   deleteCollection as deleteCollectionQuery,
   setCollectionFavorite,
   updateCollection as updateCollectionQuery,
 } from "@/lib/db/collections";
+import { FREE_COLLECTION_LIMIT, PLAN_ERRORS } from "@/lib/usage-limits";
 
-vi.mock("@/lib/session", () => ({ requireUserId: vi.fn().mockResolvedValue("user-1") }));
+// Mutable so each case can pick the plan and whether gating is on. Every case
+// starts as a Pro user with gating on, so only the plan cases see a limit.
+const plan = vi.hoisted(() => ({ isPro: true, gating: true }));
+
+vi.mock("@/lib/session", () => ({
+  requireUserId: vi.fn().mockResolvedValue("user-1"),
+  requireSessionUser: vi.fn(async () => ({ id: "user-1", isPro: plan.isPro })),
+}));
+vi.mock("@/lib/feature-flags", () => ({
+  get PRO_GATING_ENABLED() {
+    return plan.gating;
+  },
+}));
 vi.mock("@/lib/db/collections", () => ({
+  countCollections: vi.fn(),
   createCollection: vi.fn(),
   updateCollection: vi.fn(),
   deleteCollection: vi.fn(),
   setCollectionFavorite: vi.fn(),
 }));
+
+beforeEach(() => {
+  plan.isPro = true;
+  plan.gating = true;
+  vi.mocked(countCollections).mockResolvedValue(0);
+});
 
 const input = { name: "  React Patterns ", description: "" };
 
@@ -54,6 +75,49 @@ describe("createCollection", () => {
       success: false,
       error: "Couldn't create this collection. Please try again.",
     });
+  });
+});
+
+describe("createCollection plan limits", () => {
+  beforeEach(() => {
+    plan.isPro = false;
+    vi.mocked(createCollectionQuery).mockResolvedValue("col-1");
+  });
+
+  it("rejects a new collection at the Free plan's limit", async () => {
+    vi.mocked(countCollections).mockResolvedValue(FREE_COLLECTION_LIMIT);
+
+    const result = await createCollection(input);
+
+    expect(result).toEqual({ success: false, error: PLAN_ERRORS.collectionLimit });
+    expect(countCollections).toHaveBeenCalledWith("user-1");
+    expect(createCollectionQuery).not.toHaveBeenCalled();
+  });
+
+  it("creates a collection below the Free plan's limit", async () => {
+    vi.mocked(countCollections).mockResolvedValue(FREE_COLLECTION_LIMIT - 1);
+
+    const result = await createCollection(input);
+
+    expect(result).toEqual({ success: true, data: { id: "col-1" } });
+  });
+
+  it("lets a Pro user past the limit", async () => {
+    plan.isPro = true;
+    vi.mocked(countCollections).mockResolvedValue(FREE_COLLECTION_LIMIT + 5);
+
+    const result = await createCollection(input);
+
+    expect(result).toEqual({ success: true, data: { id: "col-1" } });
+  });
+
+  it("allows it on the Free plan with gating off", async () => {
+    plan.gating = false;
+    vi.mocked(countCollections).mockResolvedValue(FREE_COLLECTION_LIMIT + 5);
+
+    const result = await createCollection(input);
+
+    expect(result).toEqual({ success: true, data: { id: "col-1" } });
   });
 });
 

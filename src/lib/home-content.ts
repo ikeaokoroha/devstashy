@@ -200,6 +200,10 @@ export const PRO_PLAN: HomePlan = {
   href: "/register",
 };
 
+// Where Go Pro leads a signed-in visitor: straight to the upgrade buttons,
+// since /register would only bounce them. PRO_PLAN.href stays the signed-out default.
+export const SIGNED_IN_PRO_HREF = "/settings#billing";
+
 export const FINAL_CTA = {
   title: "Ready to Organize Your Knowledge?",
   subtitle:

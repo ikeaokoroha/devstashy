@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createItem,
@@ -8,6 +8,7 @@ import {
   updateItem,
 } from "@/actions/items";
 import {
+  countItems,
   createItem as createItemQuery,
   deleteItem as deleteItemQuery,
   setItemFavorite,
@@ -15,8 +16,21 @@ import {
   updateItem as updateItemQuery,
 } from "@/lib/db/items";
 import { deleteObject } from "@/lib/r2";
+import { FREE_ITEM_LIMIT, PLAN_ERRORS } from "@/lib/usage-limits";
 
-vi.mock("@/lib/session", () => ({ requireUserId: vi.fn().mockResolvedValue("user-1") }));
+// Mutable so each case can pick the plan and whether gating is on. Every case
+// starts as a Pro user with gating on, so only the plan cases see a limit.
+const plan = vi.hoisted(() => ({ isPro: true, gating: true }));
+
+vi.mock("@/lib/session", () => ({
+  requireUserId: vi.fn().mockResolvedValue("user-1"),
+  requireSessionUser: vi.fn(async () => ({ id: "user-1", isPro: plan.isPro })),
+}));
+vi.mock("@/lib/feature-flags", () => ({
+  get PRO_GATING_ENABLED() {
+    return plan.gating;
+  },
+}));
 vi.mock("@/lib/r2", () => ({
   // The real one only matches URLs on the configured public host, and only
   // those under the user's own key prefix.
@@ -28,12 +42,19 @@ vi.mock("@/lib/r2", () => ({
   deleteObject: vi.fn(),
 }));
 vi.mock("@/lib/db/items", () => ({
+  countItems: vi.fn(),
   createItem: vi.fn(),
   updateItem: vi.fn(),
   deleteItem: vi.fn(),
   setItemFavorite: vi.fn(),
   setItemPinned: vi.fn(),
 }));
+
+beforeEach(() => {
+  plan.isPro = true;
+  plan.gating = true;
+  vi.mocked(countItems).mockResolvedValue(0);
+});
 
 const input = {
   title: "  useAuth Hook ",
@@ -212,6 +233,77 @@ describe("createItem", () => {
       success: false,
       error: "Couldn't create this item. Please try again.",
     });
+  });
+});
+
+describe("createItem plan limits", () => {
+  const createInput = { ...input, type: "snippet" as const };
+  const imageInput = {
+    ...createInput,
+    type: "image" as const,
+    fileUrl: "https://pub-test.r2.dev/user-1/abc.png",
+    fileName: "logo.png",
+    fileSize: 2048,
+  };
+
+  beforeEach(() => {
+    plan.isPro = false;
+    vi.mocked(createItemQuery).mockResolvedValue("item-9");
+  });
+
+  it("rejects a Pro type on the Free plan before counting or saving", async () => {
+    const result = await createItem(imageInput);
+
+    expect(result).toEqual({ success: false, error: PLAN_ERRORS.proType });
+    expect(countItems).not.toHaveBeenCalled();
+    expect(createItemQuery).not.toHaveBeenCalled();
+  });
+
+  it("rejects a new item at the Free plan's limit", async () => {
+    vi.mocked(countItems).mockResolvedValue(FREE_ITEM_LIMIT);
+
+    const result = await createItem(createInput);
+
+    expect(result).toEqual({ success: false, error: PLAN_ERRORS.itemLimit });
+    expect(countItems).toHaveBeenCalledWith("user-1");
+    expect(createItemQuery).not.toHaveBeenCalled();
+  });
+
+  it("creates an item below the Free plan's limit", async () => {
+    vi.mocked(countItems).mockResolvedValue(FREE_ITEM_LIMIT - 1);
+
+    const result = await createItem(createInput);
+
+    expect(result).toEqual({ success: true, data: { id: "item-9" } });
+  });
+
+  it("lets a Pro user past the limit and create a Pro type", async () => {
+    plan.isPro = true;
+    vi.mocked(countItems).mockResolvedValue(FREE_ITEM_LIMIT + 10);
+
+    expect(await createItem(createInput)).toEqual({ success: true, data: { id: "item-9" } });
+    expect(await createItem(imageInput)).toEqual({ success: true, data: { id: "item-9" } });
+  });
+
+  it("allows everything on the Free plan with gating off", async () => {
+    plan.gating = false;
+    vi.mocked(countItems).mockResolvedValue(FREE_ITEM_LIMIT + 10);
+
+    expect(await createItem(createInput)).toEqual({ success: true, data: { id: "item-9" } });
+    expect(await createItem(imageInput)).toEqual({ success: true, data: { id: "item-9" } });
+  });
+
+  it("returns the generic error when the count fails", async () => {
+    vi.mocked(countItems).mockRejectedValue(new Error("connection lost"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await createItem(createInput);
+
+    expect(result).toEqual({
+      success: false,
+      error: "Couldn't create this item. Please try again.",
+    });
+    expect(createItemQuery).not.toHaveBeenCalled();
   });
 });
 

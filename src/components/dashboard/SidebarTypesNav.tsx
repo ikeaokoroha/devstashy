@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { ProBadge } from "@/components/shared/ProBadge";
 import {
   SidebarMenu,
   SidebarMenuBadge,
@@ -29,14 +29,7 @@ export function SidebarTypesNav({ itemTypes }: SidebarTypesNavProps) {
               >
                 <Icon className={textClass} />
                 <span className="capitalize">{type.name}s</span>
-                {PRO_ITEM_TYPES.includes(type.name) && (
-                  <Badge
-                    variant="outline"
-                    className="h-4 px-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground"
-                  >
-                    PRO
-                  </Badge>
-                )}
+                {PRO_ITEM_TYPES.includes(type.name) && <ProBadge />}
               </SidebarNavLink>
               <SidebarMenuBadge className="text-muted-foreground">
                 {type.itemCount}
