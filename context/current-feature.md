@@ -1,18 +1,37 @@
-# Current Feature
+# Current Feature: Stripe Integration Phase 1 - Core Infrastructure
 
-<!-- Feature name and short description -->
+Lay the groundwork for DevStash Pro ($8/month, $72/year) without changing anything a user can see: the Stripe SDK and a lazy client, the `PRO_GATING` flag, a pure usage-limits module, `isPro` on the session, and the billing queries Phase 2 will call.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals and requirements -->
+- Install `stripe` (22.x) server SDK only — no Stripe.js, since hosted Checkout and Portal need none
+- Add `PRO_GATING_ENABLED` to `src/lib/feature-flags.ts`, on unless exactly `"false"` (the `RATE_LIMITING` pattern); `PRO_GATING=false` in `.env`, `PRO_GATING=true` explicitly in `.env.production`
+- Create `src/lib/usage-limits.ts`: `FREE_ITEM_LIMIT = 50`, `FREE_COLLECTION_LIMIT = 3`, `BILLING_INTERVALS` + `BillingInterval`, `isProStatus`, `hasProAccess`, `canUseItemType`, `isOverLimit`, and `PLAN_ERRORS` (item limit, collection limit, Pro type, uploads)
+- Create `src/lib/stripe.ts`: lazy cached `getStripe()` (undefined = unresolved, null = unconfigured, warns once), `STRIPE_API_VERSION = "2026-08-26.dahlia"`, `getPriceId(interval)` reading `STRIPE_PRICE_ID_MONTHLY` / `_YEARLY`
+- Put `isPro` on the session: a DB-reading `jwt` callback in `src/auth.ts` only, `auth.config.ts`'s session callback copying `token.isPro` to `session.user.isPro`, and `next-auth.d.ts` typing `Session.user.isPro` and `JWT.isPro`
+- `src/lib/session.ts`: `getSession = cache(() => auth())`, `requireSessionUser()` returning `{ id, isPro }`, and `requireUserId` rebuilt on top of it with its signature unchanged; the (app) layout switches to `getSession()` so a page request runs one `isPro` query
+- Billing queries in `src/lib/db/users.ts`: `BillingUser`, `getBillingUser`, `setStripeCustomerId` (fills a null column only), `activateSubscription`, `deactivateSubscription` (scoped to the subscription id), all writes via `updateMany` returning `count > 0`
+- Lean `countItems(userId)` and `countCollections(userId)` queries
+- Unit tests: `usage-limits.test.ts` (flag mocked per case), `stripe.test.ts` (fresh module per test), and the billing and count queries in the existing db test files
+- No schema change, no migration, and no visible change — nothing is gated, no webhook, checkout or UI
 
 ## Notes
 
-<!-- Any extra notes -->
+- Full design and code sketches in `docs/stripe-integration-plan.md` (§0, §1.2, §3, §5.1, §5.2, §6.1–6.5, §9 steps 1–3); research in `context/research/stripe-integration-research.md`
+- `isPro`, `stripeCustomerId @unique` and `stripeSubscriptionId @unique` already exist on User
+- Verify the current `stripe` Node SDK and NextAuth v5 callback signatures through Context7
+- The Prisma-reading `jwt` callback must stay out of `auth.config.ts`, which `src/proxy.ts` shares and which must never load Prisma
+- Confirm the `next-auth/jwt` module augmentation typechecks under `5.0.0-beta.32`
+- `PRO_GATING_ENABLED` is read at module load, so it reads as on in a client bundle — client components must not call `hasProAccess()`; the constants and `BILLING_INTERVALS` are safe anywhere
+- `isProStatus` is true for `active`, `trialing`, `past_due`; false for `canceled`, `unpaid`, `incomplete`, `incomplete_expired`, `paused`
+- Existing action tests mock `@/lib/session`, so `requireUserId` must keep its signature
+- Billing writes are a quiet no-op for an unknown customer rather than a throw
+- `STRIPE_PUBLISHABLE_KEY` isn't used; `STRIPE_SECRET_KEY` and both price ids are already set in `.env`
+- Done when `npm run test:run`, `npx next typegen && npx tsc --noEmit`, `npm run lint` and `npm run build` pass, and sign-in/out (credentials and GitHub) and the dashboard behave as before
 
 ## History
 

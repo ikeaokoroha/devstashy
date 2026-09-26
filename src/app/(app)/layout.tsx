@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
 import { SIGN_IN_PATH } from "@/auth.config";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { TopBar } from "@/components/dashboard/TopBar";
@@ -11,6 +10,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getSidebarCollections } from "@/lib/db/collections";
 import { getSystemItemTypes } from "@/lib/db/items";
 import { getEditorPreferences } from "@/lib/db/users";
+import { getSession } from "@/lib/session";
 import { SIDEBAR_ICON_WIDTH } from "@/lib/sidebar";
 
 const SIDEBAR_FAVORITE_COLLECTIONS_LIMIT = 10;
@@ -24,7 +24,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   // The proxy already redirects signed-out visitors; this narrows the type.
-  const session = await auth();
+  // Shared with the page's requireUserId, so the request runs one isPro query.
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect(SIGN_IN_PATH);
   }

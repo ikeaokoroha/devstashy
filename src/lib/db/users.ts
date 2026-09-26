@@ -72,3 +72,67 @@ export async function updateEditorPreferences(
 
   return count > 0;
 }
+
+export interface BillingUser {
+  id: string;
+  email: string;
+  name: string | null;
+  isPro: boolean;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+}
+
+// What checkout and the billing portal need to know about the user.
+export async function getBillingUser(userId: string): Promise<BillingUser | null> {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      isPro: true,
+      stripeCustomerId: true,
+      stripeSubscriptionId: true,
+    },
+  });
+}
+
+// Only fills an empty column, so two concurrent checkouts can't overwrite each
+// other's customer.
+export async function setStripeCustomerId(userId: string, customerId: string): Promise<boolean> {
+  const { count } = await prisma.user.updateMany({
+    where: { id: userId, stripeCustomerId: null },
+    data: { stripeCustomerId: customerId },
+  });
+
+  return count > 0;
+}
+
+// updateMany so an event for a customer we don't know (e.g. a deleted account)
+// is a quiet no-op rather than a throw that makes Stripe retry for days.
+// stripeCustomerId is unique, so this touches at most one row.
+export async function activateSubscription(
+  customerId: string,
+  subscriptionId: string
+): Promise<boolean> {
+  const { count } = await prisma.user.updateMany({
+    where: { stripeCustomerId: customerId },
+    data: { isPro: true, stripeSubscriptionId: subscriptionId },
+  });
+
+  return count > 0;
+}
+
+// Scoped to the subscription the user currently holds, so a late event for an
+// old, replaced subscription can't take Pro away.
+export async function deactivateSubscription(
+  customerId: string,
+  subscriptionId: string
+): Promise<boolean> {
+  const { count } = await prisma.user.updateMany({
+    where: { stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId },
+    data: { isPro: false, stripeSubscriptionId: null },
+  });
+
+  return count > 0;
+}

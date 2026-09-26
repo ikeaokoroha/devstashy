@@ -59,6 +59,11 @@ export async function getCollectionStats(userId: string): Promise<CollectionStat
   return { totalCollections, favoriteCollections };
 }
 
+// The user's collection total alone, for checking the Free-plan limit before a create.
+export async function countCollections(userId: string): Promise<number> {
+  return prisma.collection.count({ where: { userId } });
+}
+
 export async function getRecentCollections(
   userId: string,
   limit: number

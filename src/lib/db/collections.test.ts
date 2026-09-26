@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  countCollections,
   createCollection,
   deleteCollection,
   filterOwnedCollectionIds,
@@ -349,5 +350,14 @@ describe("getFavoriteCollections", () => {
       { id: "col-1", name: "React Patterns", updatedAt, itemCount: 4 },
       { id: "col-2", name: "Empty", updatedAt, itemCount: 0 },
     ]);
+  });
+});
+
+describe("countCollections", () => {
+  it("counts the user's collections", async () => {
+    vi.mocked(prisma.collection.count).mockResolvedValue(3 as never);
+
+    expect(await countCollections("user-1")).toBe(3);
+    expect(prisma.collection.count).toHaveBeenCalledWith({ where: { userId: "user-1" } });
   });
 });
